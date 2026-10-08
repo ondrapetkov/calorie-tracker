@@ -71,7 +71,7 @@ export function WeightSection() {
     <div className="space-y-4">
       <Card>
         <h2 className="font-semibold">Log weight</h2>
-        <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="mt-3 grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3">
           <Field label="Date">
             <input className={inputCls} type="date" value={date} max={today} onChange={(e) => setDate(e.target.value || today)} />
           </Field>

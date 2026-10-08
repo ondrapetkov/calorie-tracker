@@ -38,7 +38,7 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="mb-1 block text-sm font-medium text-muted">{label}</span>
       {children}
       {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
@@ -80,6 +80,54 @@ export function Sheet({
       <div className="flex-1 overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4">
         <div className="mx-auto max-w-xl">{children}</div>
       </div>
+    </div>
+  )
+}
+
+/** A horizontal slider with a live value and min/max captions. */
+export function Slider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  display,
+  onChange,
+  captions,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  display: string
+  onChange: (value: number) => void
+  captions?: [string, string, string]
+}) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between">
+        <span className="text-sm font-medium text-muted">{label}</span>
+        <span className="text-lg font-semibold">{display}</span>
+      </div>
+      <input
+        type="range"
+        className="slider"
+        aria-label={label}
+        aria-valuetext={display}
+        min={min}
+        max={max}
+        step={step}
+        value={Math.min(max, Math.max(min, value))}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+      {captions && (
+        <div className="flex justify-between text-xs text-muted">
+          <span>{captions[0]}</span>
+          <span>{captions[1]}</span>
+          <span>{captions[2]}</span>
+        </div>
+      )}
     </div>
   )
 }

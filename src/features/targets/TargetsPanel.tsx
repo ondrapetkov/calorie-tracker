@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Button, Card, Field, inputCls } from '../../components/ui'
+import { Button, Card, Field, Slider, inputCls } from '../../components/ui'
 import { DEFAULT_WATER_PRESETS, repo } from '../../db/repo'
 import type { Profile } from '../../db/schema'
 import { localDate } from '../../domain/dates'
@@ -162,9 +162,17 @@ function TargetsForm({ profile, weightKg }: { profile: Profile | undefined; weig
       <details className="rounded-xl border border-line p-3">
         <summary className="cursor-pointer text-sm font-medium">Fine-tune</summary>
         <div className="mt-3 space-y-3">
-          <Field label="Calorie adjustment (kcal per day)" hint="Negative to lose weight, positive to gain. Picking a goal sets a default.">
-            <input className={inputCls} inputMode="text" value={offset} onChange={(e) => touch(setOffset)(e.target.value)} />
-          </Field>
+          <Slider
+            label="Calorie adjustment"
+            min={-1000}
+            max={1000}
+            step={25}
+            value={valid(o) ? o : 0}
+            display={`${valid(o) && o > 0 ? '+' : valid(o) && o < 0 ? '−' : ''}${valid(o) ? Math.abs(o) : 0} kcal/day`}
+            onChange={(v) => touch(setOffset)(String(v))}
+            captions={['−1000 (lose faster)', '0', '+1000 (gain faster)']}
+          />
+          <p className="-mt-1 text-xs text-muted">Picking a goal above sets a default; drag to fine-tune.</p>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Protein (g per kg)">
               <input className={inputCls} inputMode="decimal" value={proteinPerKg} onChange={(e) => touch(setProteinPerKg)(e.target.value)} />

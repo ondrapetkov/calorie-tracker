@@ -19,7 +19,7 @@ Personal calorie and macro tracker, built as a React + TypeScript PWA. See [docs
 
 ## Look and feel
 
-Yellow on black with dark-grey surfaces, dark mode only. All colours are tokens in `src/index.css` (`@theme`), so changing the palette is a one-file edit. The app shell is pinned to the screen (`position: fixed`): the screen area scrolls and the tab bar sits below it. The page itself is deliberately one pixel scrollable (`.scroll-spacer`), because on iOS home-screen apps a page that cannot scroll gets a viewport shorter than the screen by the status-bar height, which left a gap under the tab bar. `src/platform/viewport.ts` adds a narrow fallback for that case. More, Display shows the measurements.
+Yellow on black with dark-grey surfaces, dark mode only. All colours are tokens in `src/index.css` (`@theme`), so changing the palette is a one-file edit. The app shell is pinned to the screen (`position: fixed`): the screen area scrolls and the tab bar sits below it. The page itself is deliberately one pixel scrollable (`.scroll-spacer`), because on iOS home-screen apps a page that cannot scroll gets a viewport shorter than the screen by the status-bar height, which left a gap under the tab bar. `src/platform/viewport.ts` adds a narrow fallback for that case.
 
 ## Develop
 

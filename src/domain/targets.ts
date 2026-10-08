@@ -3,7 +3,7 @@ import { parseLocalDate } from './dates'
 export type Sex = 'male' | 'female'
 export type Goal = 'cut' | 'maintain' | 'bulk'
 
-export const GOAL_LABELS: Record<Goal, string> = { cut: 'Cutting', maintain: 'Maintenance', bulk: 'Bulking' }
+export const GOAL_LABELS: Record<Goal, string> = { cut: 'Cutting', maintain: 'Maintain', bulk: 'Bulking' }
 
 /** Default daily calorie adjustment for each goal, in kcal. */
 export const GOAL_OFFSETS: Record<Goal, number> = { cut: -400, maintain: 0, bulk: 300 }
