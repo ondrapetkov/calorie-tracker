@@ -291,4 +291,5 @@ Mobile uses a bottom tab bar; desktop widths use a sidebar. Same routes.
 ## 13. Progress
 
 - Milestone 1 (scanner spike): done and verified on iPhone.
+- Milestone 3 (meals and targets): implemented. Targets screen with goal switch and fine-tuning, meal editor and logging (one diary entry per logged meal), targets and progress in the diary. Weight is entered on the Targets screen for now (stored as today's weight entry); the weight and water screens are milestone 4.
 - Milestone 2 (core log): implemented. Diary with day totals, food search (saved foods, then Open Food Facts), barcode scan, custom foods, entry editing with undo, a Foods tab and JSON export.

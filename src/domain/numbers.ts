@@ -8,6 +8,16 @@ export function parseNumber(input: string): number | null {
   return /^\d*\.?\d+$|^\d+\.$/.test(s) ? Number(s) : NaN
 }
 
+/** Like parseNumber, but also accepts a leading minus or plus sign. */
+export function parseSignedNumber(input: string): number | null {
+  const s = input.trim().replace(/^\+/, '')
+  if (s.startsWith('-')) {
+    const n = parseNumber(s.slice(1))
+    return n === null ? NaN : -n
+  }
+  return parseNumber(s)
+}
+
 export function formatNumber(v: number, digits = 0): string {
   return v.toLocaleString('en-GB', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 }

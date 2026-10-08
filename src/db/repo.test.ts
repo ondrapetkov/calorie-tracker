@@ -91,3 +91,127 @@ describe('log entries', () => {
     expect(dump.tables.foods[0].deletedAt).not.toBeNull()
   })
 })
+
+describe('meals', () => {
+  async function setup() {
+    const chicken = await repo.saveFood({
+      ...oats,
+      name: 'Kuřecí prsa',
+      per100: { kcal: 120, protein: 22.5, carbs: 0, fat: 2.6, fiber: 0, sugar: 0, salt: 0.12 },
+    })
+    const rice = await repo.saveFood({
+      ...oats,
+      name: 'Rýže',
+      per100: { kcal: 365, protein: 7.1, carbs: 80, fat: 0.7, fiber: 1.3, sugar: 0.1, salt: null },
+    })
+    const mealId = await repo.saveMeal({
+      name: 'Kuře s rýží',
+      servings: 2,
+      note: null,
+      items: [
+        { foodId: chicken.id, grams: 300 },
+        { foodId: rice.id, grams: 200 },
+      ],
+    })
+    return { chicken, rice, mealId }
+  }
+
+  it('saves a meal and computes totals and per-serving values', async () => {
+    const { mealId } = await setup()
+    const d = (await repo.getMeal(mealId))!
+    expect(d.items.map((i) => i.food?.name)).toEqual(['Kuřecí prsa', 'Rýže'])
+    expect(d.total.kcal).toBeCloseTo(360 + 730)
+    expect(d.perServing.kcal).toBeCloseTo((360 + 730) / 2)
+  })
+
+  it('keeps ingredient identity on edit, removes dropped ones and adds new ones', async () => {
+    const { chicken, rice, mealId } = await setup()
+    const before = (await repo.getMeal(mealId))!
+    const chickenRow = before.items[0]
+    await repo.saveMeal(
+      {
+        name: 'Kuře s rýží',
+        servings: 3,
+        note: 'Meal prep',
+        items: [
+          { id: chickenRow.id, foodId: chicken.id, grams: 450 },
+          { foodId: rice.id, grams: 50 },
+        ],
+      },
+      mealId,
+    )
+    const after = (await repo.getMeal(mealId))!
+    expect(after.meal.servings).toBe(3)
+    expect(after.meal.note).toBe('Meal prep')
+    expect(after.items.length).toBe(2)
+    expect(after.items[0].id).toBe(chickenRow.id)
+    expect(after.items[0].grams).toBe(450)
+    // the rice row was removed (soft-deleted), not duplicated
+    expect(await db.mealItems.where('mealId').equals(mealId).count()).toBe(3)
+    expect(after.items.some((i) => i.id === before.items[1].id)).toBe(false)
+  })
+
+  it('logs a meal as one entry with a snapshot and rescales it when servings change', async () => {
+    const { mealId } = await setup()
+    const entry = await repo.logMeal({ mealId, servings: 1, date: '2026-10-08', slot: 'dinner' })
+    expect(entry.mealId).toBe(mealId)
+    expect(entry.foodId).toBeNull()
+    expect(entry.label).toBe('Kuře s rýží')
+    expect(entry.kcal).toBeCloseTo(545)
+    await repo.updateMealEntry(entry.id, { servings: 2, slot: 'lunch' })
+    const [updated] = await repo.entriesForDate('2026-10-08')
+    expect(updated.kcal).toBeCloseTo(1090)
+    expect(updated.slot).toBe('lunch')
+    expect(updated.servings).toBe(2)
+  })
+
+  it('keeps logged entries when the meal is deleted, and hides the meal', async () => {
+    const { mealId } = await setup()
+    await repo.logMeal({ mealId, servings: 1, date: '2026-10-08', slot: 'dinner' })
+    await repo.deleteMeal(mealId)
+    expect(await repo.getMeal(mealId)).toBeUndefined()
+    expect((await repo.listMeals()).length).toBe(0)
+    expect((await repo.entriesForDate('2026-10-08')).length).toBe(1)
+  })
+
+  it('lists the most recently logged meal first', async () => {
+    const { chicken, mealId } = await setup()
+    const other = await repo.saveMeal({ name: 'Omeleta', servings: 1, note: null, items: [{ foodId: chicken.id, grams: 100 }] })
+    expect((await repo.listMeals())[0].meal.name).toBe('Kuře s rýží') // alphabetical when never logged
+    await repo.logMeal({ mealId: other, servings: 1, date: '2026-10-08', slot: 'lunch' })
+    expect((await repo.listMeals())[0].meal.id).toBe(other)
+    expect(mealId).not.toBe(other)
+  })
+})
+
+describe('profile and weight', () => {
+  const profile = {
+    sex: 'male' as const,
+    birthDate: '2004-03-15',
+    heightCm: 181,
+    activityFactor: 1.55,
+    goal: 'cut' as const,
+    calorieOffset: -400,
+    proteinPerKg: 2,
+    fatPerKg: 0.9,
+    waterGoalMl: 2500,
+    waterPresets: [{ label: 'Shaker', ml: 250 }],
+  }
+
+  it('keeps a single profile row and updates it in place', async () => {
+    expect(await repo.getProfile()).toBeUndefined()
+    await repo.saveProfile(profile)
+    await repo.saveProfile({ ...profile, heightCm: 182 })
+    expect((await repo.getProfile())?.heightCm).toBe(182)
+    expect(await db.profile.count()).toBe(1)
+  })
+
+  it('records one weight per day and finds the latest', async () => {
+    await repo.setWeight('2026-10-07', 87.4)
+    await repo.setWeight('2026-10-08', 87)
+    await repo.setWeight('2026-10-08', 86.8)
+    expect(await db.weightEntries.count()).toBe(2)
+    expect((await repo.latestWeight())?.kg).toBe(86.8)
+    expect((await repo.latestWeight())?.date).toBe('2026-10-08')
+  })
+})

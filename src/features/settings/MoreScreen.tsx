@@ -74,7 +74,7 @@ export function MoreScreen() {
         )}
       </Card>
 
-      <p className="text-center text-xs text-slate-500">Calorie Tracker · milestone 2</p>
+      <p className="text-center text-xs text-slate-500">Calorie Tracker · milestone 3</p>
     </div>
   )
 }

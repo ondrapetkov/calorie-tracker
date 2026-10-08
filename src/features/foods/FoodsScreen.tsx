@@ -11,11 +11,8 @@ export function FoodsScreen() {
   const [editing, setEditing] = useState<Food | null>(null)
   const [creating, setCreating] = useState(false)
   const trimmed = query.trim()
-  const foods = useLiveQuery(
-    () => (trimmed ? repo.searchFoods(trimmed) : repo.allFoods()),
-    [trimmed],
-    [] as Food[],
-  )
+  const loadedFoods = useLiveQuery(() => (trimmed ? repo.searchFoods(trimmed) : repo.allFoods()), [trimmed])
+  const foods: Food[] = loadedFoods ?? []
 
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 pb-28 pt-[calc(env(safe-area-inset-top)+1rem)]">
@@ -30,7 +27,7 @@ export function FoodsScreen() {
         />
         <Button onClick={() => setCreating(true)}>New</Button>
       </div>
-      {foods.length === 0 ? (
+      {loadedFoods === undefined ? null : foods.length === 0 ? (
         <p className="text-sm text-slate-500">
           {trimmed ? 'No saved food matches.' : 'No saved foods yet. Foods are saved when you log them or create them here.'}
         </p>

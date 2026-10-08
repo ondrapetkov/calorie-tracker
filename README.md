@@ -2,15 +2,17 @@
 
 Personal calorie and macro tracker, built as a React + TypeScript PWA. See [docs/DESIGN.md](docs/DESIGN.md) for the full design.
 
-## Current state: Milestone 2, core log
+## Current state: Milestone 3, meals and targets
 
-- **Diary:** pick a day, see calories, protein, carbs, fat, fiber, sugar and salt, grouped by breakfast, lunch, dinner and snacks. Tap an entry to change its amount or meal; deleting offers Undo.
+- **Targets:** enter sex, date of birth, height, weight, activity level and goal (cutting, maintenance or bulking). The app estimates daily calories with Mifflin-St Jeor, sets protein (2 g/kg) and fat (0.9 g/kg), and gives the rest to carbs. Calorie adjustment and the per-kg values can be fine-tuned. These are estimates, not medical advice.
+- **Meals:** build a recipe from ingredients (any food, in grams), say how many servings it makes, and log portions of it in one tap, from the Meals tab or from + Add in the diary. Logging a meal records one diary entry with its macros at that time; later edits to the recipe or its ingredients do not change past days.
+- **Diary:** pick a day, see calories, protein, carbs, fat, fiber, sugar and salt against your targets (progress bars, calories left or over), grouped by breakfast, lunch, dinner and snacks. Tap an entry to change its amount or meal; deleting offers Undo.
 - **Add food:** search your saved foods first, then bundled **basic foods** (about 100 everyday ingredients with Czech names: meat, fish, eggs, dairy, grains, vegetables, fruit, nuts), then Open Food Facts for packaged products. Scan a barcode, type the digits, or scan from a photo. Amounts in grams, millilitres or servings, with live macros.
 - **Custom foods:** products missing from Open Food Facts, or missing values, are completed once and found instantly next time. A **Foods** tab lets you edit or delete saved foods.
 - **Offline-first:** everything is stored in IndexedDB (Dexie). The app shell and barcode decoder are cached, so the diary, saved foods and custom foods work offline. Online search and barcode lookup need a connection.
 - **Backup:** More, then Export data, saves all tables as JSON.
 - **Basic foods are approximate:** the values in `src/data/genericFoods.ts` are reference values typed from general knowledge of standard tables (mainly USDA), not checked line by line against a database. Check anything you rely on heavily, and edit a saved food in the Foods tab to correct it.
-- Not yet built: targets, meals, weight, water, cloud sync. See [docs/DESIGN.md](docs/DESIGN.md).
+- Not yet built: weight and water tracking screens (weight can be entered on the Targets tab), cloud sync. See [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Develop
 
@@ -37,7 +39,7 @@ Camera access needs HTTPS or `localhost`, so testing on a phone means deploying 
 
 Alternative without Git integration: `npm run build && npx wrangler pages deploy dist`.
 
-## Trying milestone 2 on the iPhone
+## Trying the latest version on the iPhone
 
 Redeploy by pushing to the branch Cloudflare builds from, then reopen the app from the Home Screen (the service worker updates itself; close and reopen once if you still see the old version).
 
@@ -47,3 +49,5 @@ Redeploy by pushing to the branch Cloudflare builds from, then reopen the app fr
 4. Edit an entry's amount, delete one and use Undo, then flip between days.
 5. In airplane mode, log a saved food. Then close and reopen the app and confirm the data is still there.
 6. More, Export data: check that the share sheet or a file download works on iOS.
+7. Targets tab: enter your details and check the numbers against what you expect (about 2,540 kcal, 174 g protein for 87 kg, cutting).
+8. Meals tab: build a meal you eat, log one serving from the Meals tab and another from + Add, then change the servings of a logged entry.

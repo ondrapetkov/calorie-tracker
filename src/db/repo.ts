@@ -1,9 +1,44 @@
-import { db as defaultDb, type AppDB, type Food, type LogEntry, type SyncFields } from './schema'
-import { multiplyMacros, scaleMacros, type Slot } from '../domain/nutrition'
+import {
+  db as defaultDb,
+  type AppDB,
+  type Food,
+  type LogEntry,
+  type Meal,
+  type MealItem,
+  type Profile,
+  type SyncFields,
+  type WeightEntry,
+} from './schema'
+import { mealPerServing, mealTotal, type MealIngredient } from '../domain/meals'
+import { multiplyMacros, scaleMacros, type Macros, type Slot } from '../domain/nutrition'
 import { matchesQuery } from '../domain/search'
 
 /** Everything a caller provides when creating or editing a food. */
 export type FoodInput = Omit<Food, keyof SyncFields | 'lastUsedAt' | 'useCount'>
+
+export type ProfileInput = Omit<Profile, keyof SyncFields>
+
+export interface MealInput {
+  name: string
+  servings: number
+  note: string | null
+  /** `id` is set for ingredients that already exist, so edits keep their identity. */
+  items: { id?: string; foodId: string; grams: number }[]
+}
+
+export interface MealDetail {
+  meal: Meal
+  items: (MealItem & { food: Food | undefined })[]
+  total: Macros
+  perServing: Macros
+}
+
+/** Default water presets; see docs/DESIGN.md. */
+export const DEFAULT_WATER_PRESETS = [
+  { label: 'Shaker', ml: 250 },
+  { label: 'Sport bottle', ml: 900 },
+  { label: 'Stanley', ml: 1100 },
+]
 
 function fresh(): SyncFields {
   return { id: crypto.randomUUID(), updatedAt: Date.now(), deletedAt: null, dirty: 1 }
@@ -120,6 +155,154 @@ export function createRepo(db: AppDB = defaultDb) {
         .filter((e) => e.deletedAt === null)
         .toArray()
       return rows.sort((a, b) => a.loggedAt - b.loggedAt)
+    },
+
+    /** Log `servings` portions of a saved meal. Macros come from the ingredients as they are now. */
+    async logMeal(params: { mealId: string; servings: number; date: string; slot: Slot }): Promise<LogEntry> {
+      const detail = await this.getMeal(params.mealId)
+      if (!detail) throw new Error('Meal not found')
+      const entry: LogEntry = {
+        ...fresh(),
+        ...multiplyMacros(detail.perServing, params.servings),
+        date: params.date,
+        slot: params.slot,
+        foodId: null,
+        mealId: detail.meal.id,
+        grams: null,
+        unit: 'g',
+        servings: params.servings,
+        label: detail.meal.name,
+        loggedAt: Date.now(),
+      }
+      await db.logEntries.add(entry)
+      return entry
+    },
+
+    /** Change the number of portions and/or the slot of a logged meal, rescaling its snapshot. */
+    async updateMealEntry(id: string, changes: { servings: number; slot: Slot }): Promise<void> {
+      const entry = await db.logEntries.get(id)
+      if (!entry) return
+      const ratio = entry.servings && entry.servings > 0 ? changes.servings / entry.servings : 1
+      await db.logEntries.update(id, {
+        ...multiplyMacros(entry, ratio),
+        servings: changes.servings,
+        slot: changes.slot,
+        ...touch(),
+      })
+    },
+
+    // ---- meals ----------------------------------------------------------
+
+    async saveMeal(input: MealInput, id?: string): Promise<string> {
+      return db.transaction('rw', db.meals, db.mealItems, async () => {
+        let mealId = id
+        if (mealId) {
+          await db.meals.update(mealId, { name: input.name, servings: input.servings, note: input.note, ...touch() })
+        } else {
+          const meal: Meal = { ...fresh(), name: input.name, servings: input.servings, note: input.note }
+          await db.meals.add(meal)
+          mealId = meal.id
+        }
+        const existing = await db.mealItems
+          .where('mealId')
+          .equals(mealId)
+          .filter((i) => i.deletedAt === null)
+          .toArray()
+        const keptIds = new Set(input.items.map((i) => i.id).filter(Boolean))
+        for (const old of existing) {
+          if (!keptIds.has(old.id)) await db.mealItems.update(old.id, { deletedAt: Date.now(), ...touch() })
+        }
+        for (const [index, item] of input.items.entries()) {
+          if (item.id && existing.some((e) => e.id === item.id)) {
+            await db.mealItems.update(item.id, { foodId: item.foodId, grams: item.grams, sortOrder: index, ...touch() })
+          } else {
+            await db.mealItems.add({
+              ...fresh(),
+              mealId,
+              foodId: item.foodId,
+              grams: item.grams,
+              sortOrder: index,
+            })
+          }
+        }
+        return mealId
+      })
+    },
+
+    async getMeal(id: string): Promise<MealDetail | undefined> {
+      const meal = await db.meals.get(id)
+      if (!meal || meal.deletedAt !== null) return undefined
+      const rows = await db.mealItems
+        .where('mealId')
+        .equals(id)
+        .filter((i) => i.deletedAt === null)
+        .toArray()
+      rows.sort((a, b) => a.sortOrder - b.sortOrder)
+      const foods = await db.foods.bulkGet(rows.map((r) => r.foodId))
+      const items = rows.map((r, i) => ({ ...r, food: foods[i] }))
+      const ingredients: MealIngredient[] = items.flatMap((i) =>
+        i.food ? [{ per100: i.food.per100, grams: i.grams }] : [],
+      )
+      return {
+        meal,
+        items,
+        total: mealTotal(ingredients),
+        perServing: mealPerServing(ingredients, meal.servings),
+      }
+    },
+
+    /** Live meals, most recently logged first, then alphabetically. */
+    async listMeals(): Promise<MealDetail[]> {
+      const meals = await db.meals.filter((m) => m.deletedAt === null).toArray()
+      const details = (await Promise.all(meals.map((m) => this.getMeal(m.id)))).filter(
+        (d): d is MealDetail => d !== undefined,
+      )
+      const entries = await db.logEntries.filter((e) => e.mealId !== null && e.deletedAt === null).toArray()
+      const lastLogged = new Map<string, number>()
+      for (const e of entries) {
+        lastLogged.set(e.mealId!, Math.max(lastLogged.get(e.mealId!) ?? 0, e.loggedAt))
+      }
+      return details.sort(
+        (a, b) =>
+          (lastLogged.get(b.meal.id) ?? 0) - (lastLogged.get(a.meal.id) ?? 0) ||
+          a.meal.name.localeCompare(b.meal.name),
+      )
+    },
+
+    async deleteMeal(id: string): Promise<void> {
+      await db.transaction('rw', db.meals, db.mealItems, async () => {
+        await db.meals.update(id, { deletedAt: Date.now(), ...touch() })
+        await db.mealItems.where('mealId').equals(id).modify({ deletedAt: Date.now(), ...touch() })
+      })
+    },
+
+    // ---- profile and weight ---------------------------------------------
+
+    async getProfile(): Promise<Profile | undefined> {
+      return db.profile.filter((p) => p.deletedAt === null).first()
+    },
+
+    async saveProfile(input: ProfileInput): Promise<void> {
+      const existing = await db.profile.filter((p) => p.deletedAt === null).first()
+      if (existing) await db.profile.update(existing.id, { ...input, ...touch() })
+      else await db.profile.add({ ...fresh(), ...input })
+    },
+
+    /** Record the weight for a day, replacing that day's entry if there is one. */
+    async setWeight(date: string, kg: number): Promise<void> {
+      const existing = await db.weightEntries
+        .where('date')
+        .equals(date)
+        .filter((w) => w.deletedAt === null)
+        .first()
+      const now = Date.now()
+      if (existing) await db.weightEntries.update(existing.id, { kg, measuredAt: now, ...touch() })
+      else await db.weightEntries.add({ ...fresh(), date, kg, measuredAt: now })
+    },
+
+    async latestWeight(): Promise<WeightEntry | undefined> {
+      const all = await db.weightEntries.filter((w) => w.deletedAt === null).toArray()
+      return all.sort((a, b) => b.date.localeCompare(a.date) || b.measuredAt - a.measuredAt)[0]
     },
 
     // ---- backup ---------------------------------------------------------

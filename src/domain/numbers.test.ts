@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeText, parseNumber } from './numbers'
+import { normalizeText, parseNumber, parseSignedNumber } from './numbers'
 
 describe('parseNumber', () => {
   it('parses dots and decimal commas', () => {
@@ -21,5 +21,21 @@ describe('parseNumber', () => {
 describe('normalizeText', () => {
   it('removes diacritics and case', () => {
     expect(normalizeText('Kuřecí Prsa')).toBe('kureci prsa')
+  })
+})
+
+describe('parseSignedNumber', () => {
+  it('accepts signs and decimal commas', () => {
+    expect(parseSignedNumber('-400')).toBe(-400)
+    expect(parseSignedNumber('+300')).toBe(300)
+    expect(parseSignedNumber('-12,5')).toBe(-12.5)
+    expect(parseSignedNumber('0')).toBe(0)
+  })
+
+  it('returns null for blank and NaN for junk', () => {
+    expect(parseSignedNumber('')).toBeNull()
+    expect(parseSignedNumber('-')).toBeNaN()
+    expect(parseSignedNumber('--3')).toBeNaN()
+    expect(parseSignedNumber('x')).toBeNaN()
   })
 })

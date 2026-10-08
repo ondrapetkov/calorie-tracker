@@ -7,6 +7,7 @@ import { addDays, dayLabel, localDate } from '../../domain/dates'
 import { SLOTS, SLOT_LABELS, defaultSlot, sumMacros, type Slot } from '../../domain/nutrition'
 import { formatNumber } from '../../domain/numbers'
 import { AddFoodFlow } from '../add-food/AddFoodFlow'
+import { useTargets } from '../targets/useTargets'
 import { DayTotals } from './DayTotals'
 import { EditEntrySheet } from './EditEntrySheet'
 
@@ -15,13 +16,17 @@ interface Toast {
   undo?: () => void
 }
 
-export function DiaryScreen() {
+export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
   const [date, setDate] = useState(localDate)
   const [adding, setAdding] = useState<Slot | null>(null)
   const [editing, setEditing] = useState<LogEntry | null>(null)
   const [toast, setToast] = useState<Toast | null>(null)
 
-  const entries = useLiveQuery(() => repo.entriesForDate(date), [date], [] as LogEntry[])
+  // Undefined while the first query runs, so we do not flash an empty day ("0 kcal") on every tab switch.
+  const loadedEntries = useLiveQuery(() => repo.entriesForDate(date), [date])
+  const { targets, loading: targetsLoading } = useTargets()
+  const loading = loadedEntries === undefined || targetsLoading
+  const entries = loadedEntries ?? []
   const totals = sumMacros(entries)
 
   useEffect(() => {
@@ -44,9 +49,13 @@ export function DiaryScreen() {
         </Button>
       </div>
 
-      <DayTotals totals={totals} />
+      {loading ? (
+        <div className="h-48 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" aria-label="Loading" />
+      ) : (
+        <DayTotals totals={totals} targets={targets} onSetupTargets={onOpenTargets} />
+      )}
 
-      {SLOTS.map((slot) => {
+      {!loading && SLOTS.map((slot) => {
         const rows = entries.filter((e) => e.slot === slot)
         const kcal = rows.reduce((sum, e) => sum + e.kcal, 0)
         return (
@@ -70,7 +79,10 @@ export function DiaryScreen() {
                 <div className="min-w-0 flex-1">
                   <div className="truncate">{e.label}</div>
                   <div className="text-xs text-slate-500">
-                    {formatNumber(e.grams ?? 0, 0)} {e.unit} · P {formatNumber(e.protein, 1)} · C {formatNumber(e.carbs, 1)} · F{' '}
+                    {e.mealId !== null
+                      ? `${formatNumber(e.servings ?? 1, 2).replace(/\.?0+$/, '')} × meal`
+                      : `${formatNumber(e.grams ?? 0, 0)} ${e.unit}`}{' '}
+                    · P {formatNumber(e.protein, 1)} · C {formatNumber(e.carbs, 1)} · F{' '}
                     {formatNumber(e.fat, 1)}
                   </div>
                 </div>
@@ -110,10 +122,8 @@ export function DiaryScreen() {
 
       {adding && (
         <AddFoodFlow
-          date={date}
-          slot={adding}
+          mode={{ kind: 'log', date, slot: adding, onLogged: (message) => setToast({ message }) }}
           onClose={() => setAdding(null)}
-          onLogged={(message) => setToast({ message })}
         />
       )}
       {editing && (
