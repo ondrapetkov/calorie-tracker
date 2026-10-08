@@ -77,7 +77,7 @@ export function MoreScreen() {
 
       <DisplayInfo />
 
-      <p className="text-center text-xs text-muted">Calorie Tracker · milestone 3</p>
+      <p className="text-center text-xs text-muted">Calorie Tracker · milestone 4</p>
     </div>
   )
 }

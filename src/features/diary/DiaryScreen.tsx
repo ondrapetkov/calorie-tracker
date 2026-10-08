@@ -1,26 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Button, Card } from '../../components/ui'
+import { useToast } from '../../components/Toast'
 import { repo } from '../../db/repo'
 import type { LogEntry } from '../../db/schema'
 import { addDays, dayLabel, localDate } from '../../domain/dates'
 import { SLOTS, SLOT_LABELS, defaultSlot, sumMacros, type Slot } from '../../domain/nutrition'
 import { formatNumber } from '../../domain/numbers'
 import { AddFoodFlow } from '../add-food/AddFoodFlow'
+import { WaterCard } from '../body/WaterCard'
 import { useTargets } from '../targets/useTargets'
 import { DayTotals } from './DayTotals'
 import { EditEntrySheet } from './EditEntrySheet'
-
-interface Toast {
-  message: string
-  undo?: () => void
-}
 
 export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
   const [date, setDate] = useState(localDate)
   const [adding, setAdding] = useState<Slot | null>(null)
   const [editing, setEditing] = useState<LogEntry | null>(null)
-  const [toast, setToast] = useState<Toast | null>(null)
+  const [showToast, toastNode] = useToast({ raised: true })
 
   // Undefined while the first query runs, so we do not flash an empty day ("0 kcal") on every tab switch.
   const loadedEntries = useLiveQuery(() => repo.entriesForDate(date), [date])
@@ -28,12 +25,6 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
   const loading = loadedEntries === undefined || targetsLoading
   const entries = loadedEntries ?? []
   const totals = sumMacros(entries)
-
-  useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(null), 6000)
-    return () => clearTimeout(t)
-  }, [toast])
 
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 pb-28 pt-[calc(env(safe-area-inset-top)+1rem)]">
@@ -54,6 +45,8 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
       ) : (
         <DayTotals totals={totals} targets={targets} onSetupTargets={onOpenTargets} />
       )}
+
+      {!loading && <WaterCard date={date} onChange={showToast} />}
 
       {!loading && SLOTS.map((slot) => {
         const rows = entries.filter((e) => e.slot === slot)
@@ -102,27 +95,11 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
         +
       </button>
 
-      {toast && (
-        <div className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+8rem)] z-30 mx-auto flex max-w-xl items-center justify-between rounded-lg border border-line-strong bg-surface-2 px-4 py-3 text-sm text-fg shadow-lg">
-          <span>{toast.message}</span>
-          {toast.undo && (
-            <button
-              type="button"
-              className="font-semibold text-accent"
-              onClick={() => {
-                toast.undo?.()
-                setToast(null)
-              }}
-            >
-              Undo
-            </button>
-          )}
-        </div>
-      )}
+      {toastNode}
 
       {adding && (
         <AddFoodFlow
-          mode={{ kind: 'log', date, slot: adding, onLogged: (message) => setToast({ message }) }}
+          mode={{ kind: 'log', date, slot: adding, onLogged: (message) => showToast(message) }}
           onClose={() => setAdding(null)}
         />
       )}
@@ -131,7 +108,7 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
           entry={editing}
           onClose={() => setEditing(null)}
           onDeleted={(entry) =>
-            setToast({ message: 'Entry deleted', undo: () => void repo.restoreEntry(entry.id) })
+            showToast('Entry deleted', () => void repo.restoreEntry(entry.id))
           }
         />
       )}

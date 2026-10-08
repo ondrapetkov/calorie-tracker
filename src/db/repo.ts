@@ -7,6 +7,7 @@ import {
   type MealItem,
   type Profile,
   type SyncFields,
+  type WaterEntry,
   type WeightEntry,
 } from './schema'
 import { mealPerServing, mealTotal, type MealIngredient } from '../domain/meals'
@@ -33,12 +34,18 @@ export interface MealDetail {
   perServing: Macros
 }
 
+export interface WaterSettings {
+  goalMl: number
+  presets: { label: string; ml: number }[]
+}
+
 /** Default water presets; see docs/DESIGN.md. */
 export const DEFAULT_WATER_PRESETS = [
   { label: 'Shaker', ml: 250 },
   { label: 'Sport bottle', ml: 900 },
   { label: 'Stanley', ml: 1100 },
 ]
+export const DEFAULT_WATER_GOAL_ML = 2500
 
 function fresh(): SyncFields {
   return { id: crypto.randomUUID(), updatedAt: Date.now(), deletedAt: null, dirty: 1 }
@@ -303,6 +310,72 @@ export function createRepo(db: AppDB = defaultDb) {
     async latestWeight(): Promise<WeightEntry | undefined> {
       const all = await db.weightEntries.filter((w) => w.deletedAt === null).toArray()
       return all.sort((a, b) => b.date.localeCompare(a.date) || b.measuredAt - a.measuredAt)[0]
+    },
+
+    async weightEntries(): Promise<WeightEntry[]> {
+      const all = await db.weightEntries.filter((w) => w.deletedAt === null).toArray()
+      return all.sort((a, b) => a.date.localeCompare(b.date) || a.measuredAt - b.measuredAt)
+    },
+
+    async deleteWeight(id: string): Promise<void> {
+      await db.weightEntries.update(id, { deletedAt: Date.now(), ...touch() })
+    },
+
+    async restoreWeight(id: string): Promise<void> {
+      await db.weightEntries.update(id, { deletedAt: null, ...touch() })
+    },
+
+    // ---- water ----------------------------------------------------------
+
+    async addWater(date: string, ml: number): Promise<WaterEntry> {
+      const entry: WaterEntry = { ...fresh(), date, ml, loggedAt: Date.now() }
+      await db.waterEntries.add(entry)
+      return entry
+    },
+
+    async waterEntriesForDate(date: string): Promise<WaterEntry[]> {
+      const rows = await db.waterEntries
+        .where('date')
+        .equals(date)
+        .filter((w) => w.deletedAt === null)
+        .toArray()
+      return rows.sort((a, b) => a.loggedAt - b.loggedAt)
+    },
+
+    async deleteWater(id: string): Promise<void> {
+      await db.waterEntries.update(id, { deletedAt: Date.now(), ...touch() })
+    },
+
+    async restoreWater(id: string): Promise<void> {
+      await db.waterEntries.update(id, { deletedAt: null, ...touch() })
+    },
+
+    /** Total millilitres per day for the given dates (days without entries are 0). */
+    async waterTotals(dates: string[]): Promise<Record<string, number>> {
+      const totals: Record<string, number> = Object.fromEntries(dates.map((d) => [d, 0]))
+      const rows = await db.waterEntries
+        .where('date')
+        .anyOf(dates)
+        .filter((w) => w.deletedAt === null)
+        .toArray()
+      for (const r of rows) totals[r.date] += r.ml
+      return totals
+    },
+
+    async getWaterSettings(): Promise<WaterSettings> {
+      const profile = await db.profile.filter((p) => p.deletedAt === null).first()
+      return {
+        goalMl: profile?.waterGoalMl ?? DEFAULT_WATER_GOAL_ML,
+        presets: profile?.waterPresets ?? DEFAULT_WATER_PRESETS,
+      }
+    },
+
+    /** Water settings live on the profile row. Returns false when there is no profile yet. */
+    async saveWaterSettings(settings: WaterSettings): Promise<boolean> {
+      const profile = await db.profile.filter((p) => p.deletedAt === null).first()
+      if (!profile) return false
+      await db.profile.update(profile.id, { waterGoalMl: settings.goalMl, waterPresets: settings.presets, ...touch() })
+      return true
     },
 
     // ---- backup ---------------------------------------------------------

@@ -215,3 +215,65 @@ describe('profile and weight', () => {
     expect((await repo.latestWeight())?.date).toBe('2026-10-08')
   })
 })
+
+describe('weight history', () => {
+  it('lists live weigh-ins oldest first and supports delete and restore', async () => {
+    await repo.setWeight('2026-10-08', 86.8)
+    await repo.setWeight('2026-10-06', 87.4)
+    await repo.setWeight('2026-10-07', 87.1)
+    expect((await repo.weightEntries()).map((w) => w.date)).toEqual(['2026-10-06', '2026-10-07', '2026-10-08'])
+    const middle = (await repo.weightEntries())[1]
+    await repo.deleteWeight(middle.id)
+    expect((await repo.weightEntries()).map((w) => w.date)).toEqual(['2026-10-06', '2026-10-08'])
+    await repo.restoreWeight(middle.id)
+    expect((await repo.weightEntries()).length).toBe(3)
+  })
+
+  it('lets a deleted day be logged again without resurrecting the old entry', async () => {
+    await repo.setWeight('2026-10-08', 87)
+    await repo.deleteWeight((await repo.weightEntries())[0].id)
+    await repo.setWeight('2026-10-08', 86.5)
+    const live = await repo.weightEntries()
+    expect(live.length).toBe(1)
+    expect(live[0].kg).toBe(86.5)
+  })
+})
+
+describe('water', () => {
+  it('adds entries, totals per day and ignores deleted ones', async () => {
+    await repo.addWater('2026-10-08', 250)
+    const big = await repo.addWater('2026-10-08', 900)
+    await repo.addWater('2026-10-07', 1100)
+    expect((await repo.waterEntriesForDate('2026-10-08')).map((w) => w.ml)).toEqual([250, 900])
+    expect(await repo.waterTotals(['2026-10-06', '2026-10-07', '2026-10-08'])).toEqual({
+      '2026-10-06': 0,
+      '2026-10-07': 1100,
+      '2026-10-08': 1150,
+    })
+    await repo.deleteWater(big.id)
+    expect((await repo.waterTotals(['2026-10-08']))['2026-10-08']).toBe(250)
+    await repo.restoreWater(big.id)
+    expect((await repo.waterTotals(['2026-10-08']))['2026-10-08']).toBe(1150)
+  })
+
+  it('uses defaults until a profile exists, then stores settings on the profile', async () => {
+    const defaults = await repo.getWaterSettings()
+    expect(defaults.goalMl).toBe(2500)
+    expect(defaults.presets.map((p) => p.ml)).toEqual([250, 900, 1100])
+    expect(await repo.saveWaterSettings({ goalMl: 3000, presets: [{ label: 'Cup', ml: 300 }] })).toBe(false)
+    await repo.saveProfile({
+      sex: 'male',
+      birthDate: '2004-03-15',
+      heightCm: 181,
+      activityFactor: 1.55,
+      goal: 'cut',
+      calorieOffset: -400,
+      proteinPerKg: 2,
+      fatPerKg: 0.9,
+      waterGoalMl: 2500,
+      waterPresets: defaults.presets,
+    })
+    expect(await repo.saveWaterSettings({ goalMl: 3000, presets: [{ label: 'Cup', ml: 300 }] })).toBe(true)
+    expect(await repo.getWaterSettings()).toEqual({ goalMl: 3000, presets: [{ label: 'Cup', ml: 300 }] })
+  })
+})

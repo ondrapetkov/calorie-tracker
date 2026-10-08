@@ -18,18 +18,10 @@ import {
 
 const valid = (n: number | null): n is number => n !== null && !Number.isNaN(n)
 
-export function TargetsScreen() {
+export function TargetsPanel() {
   const data = useLiveQuery(async () => ({ profile: await repo.getProfile(), weight: await repo.latestWeight() }), [])
-  return (
-    <div className="mx-auto max-w-xl space-y-4 px-4 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)]">
-      <h1 className="text-xl font-semibold">Targets</h1>
-      {!data ? (
-        <p className="text-sm text-muted">Loading…</p>
-      ) : (
-        <TargetsForm profile={data.profile} weightKg={data.weight?.kg} />
-      )}
-    </div>
-  )
+  if (!data) return <p className="text-sm text-muted">Loading…</p>
+  return <TargetsForm profile={data.profile} weightKg={data.weight?.kg} />
 }
 
 function TargetsForm({ profile, weightKg }: { profile: Profile | undefined; weightKg: number | undefined }) {
