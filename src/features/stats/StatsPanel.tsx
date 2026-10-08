@@ -35,7 +35,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   )
 }
 
-export function StatsScreen() {
+export function StatsPanel() {
   const [kind, setKind] = useState<PeriodKind>('week')
   const [period, setPeriod] = useState(() => periodFor('week', localDate()))
   const { targets } = useTargets()
@@ -57,8 +57,7 @@ export function StatsScreen() {
   const diff = target !== null && summary.loggedDays > 0 ? summary.avg.kcal - target : null
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-4 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)]">
-      <h1 className="text-xl font-semibold">Stats</h1>
+    <div className="space-y-4">
       <Segmented label="Period" value={kind} options={KINDS} onChange={changeKind} />
 
       <div className="flex items-center justify-between">

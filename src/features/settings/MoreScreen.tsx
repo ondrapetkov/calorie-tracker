@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button, Card } from '../../components/ui'
 import { repo } from '../../db/repo'
 import { Sheet } from '../../components/ui'
-import { FoodsPanel } from '../foods/FoodsPanel'
+import { StatsPanel } from '../stats/StatsPanel'
 import { SyncCard } from './SyncCard'
 
 type Persisted = 'unknown' | 'yes' | 'no' | 'unsupported'
@@ -15,7 +15,7 @@ async function readPersisted(): Promise<Persisted> {
 export function MoreScreen() {
   const [persisted, setPersisted] = useState<Persisted>('unknown')
   const [message, setMessage] = useState<string | null>(null)
-  const [foodsOpen, setFoodsOpen] = useState(false)
+  const [statsOpen, setStatsOpen] = useState(false)
 
   useEffect(() => {
     void readPersisted().then(setPersisted)
@@ -55,12 +55,12 @@ export function MoreScreen() {
       <SyncCard />
 
       <Card>
-        <h2 className="font-semibold">Saved foods</h2>
+        <h2 className="font-semibold">Statistics</h2>
         <p className="mt-1 text-sm text-muted">
-          Foods you have logged or created. Edit their values, fix a missing serving size, or delete ones you no longer use.
+          Average calories, macros and days logged for a week, month or year, with a chart against your target.
         </p>
-        <Button className="mt-3 w-full" onClick={() => setFoodsOpen(true)}>
-          Manage saved foods
+        <Button className="mt-3 w-full" onClick={() => setStatsOpen(true)}>
+          Open statistics
         </Button>
       </Card>
 
@@ -90,9 +90,9 @@ export function MoreScreen() {
         )}
       </Card>
 
-      {foodsOpen && (
-        <Sheet title="Saved foods" onClose={() => setFoodsOpen(false)}>
-          <FoodsPanel />
+      {statsOpen && (
+        <Sheet title="Statistics" onClose={() => setStatsOpen(false)}>
+          <StatsPanel />
         </Sheet>
       )}
 
