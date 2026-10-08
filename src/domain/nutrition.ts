@@ -1,7 +1,7 @@
 export const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'] as const
 export type Slot = (typeof SLOTS)[number]
 
-export type FoodSource = 'off' | 'usda' | 'custom'
+export type FoodSource = 'off' | 'usda' | 'generic' | 'custom'
 
 export const SLOT_LABELS: Record<Slot, string> = {
   breakfast: 'Breakfast',

@@ -170,7 +170,8 @@ These are estimates, typically within about ±10%. The UI presents them as edita
 ### 6.1 Search order
 
 1. Local `food` table (instant, offline, ranked by `useCount` and `lastUsedAt`).
-2. Open Food Facts text search via `cgi/search.pl`, in Czech (`cc=cz`, `lc=cs`), sorted by popularity (`unique_scans_n`), debounced and cancelled on new input. An optional "sold in CZ only" filter restricts results by country tag.
+1a. Bundled basic foods (`src/data/genericFoods.ts`, Czech names plus aliases, `source = 'generic'`, `externalId = 'generic:<id>'`). Open Food Facts is mostly packaged products and handles "kuřecí prsa" or "paprika červená" poorly; these values are approximate and must be replaced by a verified source (USDA FoodData Central is CC0 and downloadable) if accuracy matters.
+2. Open Food Facts text search via `cgi/search.pl`, in Czech (`cc=cz`, `lc=cs`), sorted by popularity (`unique_scans_n`), debounced and cancelled on new input. An optional "sold in CZ only" filter restricts results by country tag. Busy-server responses (429/5xx) are retried with backoff, and identical queries are answered from a 30-minute in-memory cache so the same input gives the same output. Word matching tolerates Czech endings and ignores diacritics.
 3. Custom food form, if nothing fits.
 
 ### 6.2 Barcode

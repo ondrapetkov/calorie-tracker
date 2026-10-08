@@ -103,13 +103,49 @@ export async function lookupBarcode(barcode: string, signal?: AbortSignal): Prom
 }
 
 export type SearchResult =
-  | { status: 'ok'; drafts: FoodDraft[] }
+  | { status: 'ok'; drafts: FoodDraft[]; cached: boolean }
   | { status: 'error'; message: string }
 
+const RETRY_DELAYS_MS = [700, 1800]
+const CACHE_TTL_MS = 30 * 60 * 1000
+const CACHE_MAX = 50
+const cache = new Map<string, { at: number; drafts: FoodDraft[] }>()
+
+export function clearSearchCache() {
+  cache.clear()
+}
+
+/** Open Food Facts answers 429/5xx when busy; those are worth retrying, others are not. */
+const isTransient = (status: number) => status === 429 || status >= 500
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'))
+    const t = setTimeout(resolve, ms)
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(t)
+        reject(new DOMException('Aborted', 'AbortError'))
+      },
+      { once: true },
+    )
+  })
+}
+
+/**
+ * Text search. Identical queries are answered from a short-lived cache so the same
+ * input shows the same results, and busy-server responses are retried with backoff
+ * before an error is reported.
+ */
 export async function searchProducts(
   query: string,
   options: { signal?: AbortSignal; czechOnly?: boolean } = {},
 ): Promise<SearchResult> {
+  const key = `${options.czechOnly ? 'cz' : 'all'}|${query.trim().toLowerCase()}`
+  const hit = cache.get(key)
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return { status: 'ok', drafts: hit.drafts, cached: true }
+
   const params = new URLSearchParams({
     search_terms: query,
     search_simple: '1',
@@ -126,17 +162,29 @@ export async function searchProducts(
     params.set('tag_contains_0', 'contains')
     params.set('tag_0', 'czech-republic')
   }
-  try {
-    const res = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?${params}`, {
-      signal: options.signal,
-    })
-    if (!res.ok) return { status: 'error', message: `HTTP ${res.status}` }
-    const body = await res.json()
-    const products: RawProduct[] = Array.isArray(body.products) ? body.products : []
-    const drafts = products.map(productToDraft).filter((d): d is FoodDraft => d !== null)
-    return { status: 'ok', drafts }
-  } catch (e) {
-    if (e instanceof DOMException && e.name === 'AbortError') throw e
-    return { status: 'error', message: e instanceof Error ? e.message : String(e) }
+  const url = `https://world.openfoodfacts.org/cgi/search.pl?${params}`
+
+  let lastError = 'unknown error'
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      const res = await fetch(url, { signal: options.signal })
+      if (res.ok) {
+        const body = await res.json()
+        const products: RawProduct[] = Array.isArray(body.products) ? body.products : []
+        const drafts = products.map(productToDraft).filter((d): d is FoodDraft => d !== null)
+        if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value!)
+        cache.set(key, { at: Date.now(), drafts })
+        return { status: 'ok', drafts, cached: false }
+      }
+      lastError = res.status === 503 || res.status === 429 ? `HTTP ${res.status}, server busy` : `HTTP ${res.status}`
+      if (!isTransient(res.status)) break
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') throw e
+      lastError = e instanceof Error ? e.message : String(e)
+    }
+    const delay = RETRY_DELAYS_MS[attempt]
+    if (delay === undefined) break
+    await sleep(delay, options.signal)
   }
+  return { status: 'error', message: lastError }
 }

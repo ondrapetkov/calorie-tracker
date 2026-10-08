@@ -1,6 +1,6 @@
 import { db as defaultDb, type AppDB, type Food, type LogEntry, type SyncFields } from './schema'
 import { multiplyMacros, scaleMacros, type Slot } from '../domain/nutrition'
-import { normalizeText } from '../domain/numbers'
+import { matchesQuery } from '../domain/search'
 
 /** Everything a caller provides when creating or editing a food. */
 export type FoodInput = Omit<Food, keyof SyncFields | 'lastUsedAt' | 'useCount'>
@@ -42,12 +42,8 @@ export function createRepo(db: AppDB = defaultDb) {
 
     /** All live foods whose name or brand matches every word in the query. */
     async searchFoods(query: string): Promise<Food[]> {
-      const words = normalizeText(query).split(/\s+/).filter(Boolean)
       const all = await db.foods.filter((f) => f.deletedAt === null).toArray()
-      const hits = all.filter((f) => {
-        const hay = normalizeText(`${f.name} ${f.brand ?? ''}`)
-        return words.every((w) => hay.includes(w))
-      })
+      const hits = all.filter((f) => matchesQuery(`${f.name} ${f.brand ?? ''}`, query))
       return hits.sort((a, b) => b.useCount - a.useCount || a.name.localeCompare(b.name))
     },
 

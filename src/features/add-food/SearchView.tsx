@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { searchProducts, type FoodDraft } from '../../api/openFoodFacts'
+import { searchGenericFoods } from '../../data/searchGeneric'
 import { Button, inputCls } from '../../components/ui'
 import { repo } from '../../db/repo'
 import type { Food } from '../../db/schema'
@@ -15,7 +16,7 @@ interface Props {
 type Remote =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'ok'; drafts: FoodDraft[] }
+  | { status: 'ok'; drafts: FoodDraft[]; cached: boolean }
   | { status: 'error'; message: string }
 
 const CZ_KEY = 'search.czechOnly'
@@ -32,6 +33,7 @@ export function SearchView({ onPick, onScan, onCustom }: Props) {
   const [query, setQuery] = useState('')
   const [czechOnly, setCzechOnly] = useState(readCzechOnly)
   const [remote, setRemote] = useState<Remote>({ status: 'idle' })
+  const [retryToken, setRetryToken] = useState(0)
   const trimmed = query.trim()
 
   const local = useLiveQuery(
@@ -51,7 +53,7 @@ export function SearchView({ onPick, onScan, onCustom }: Props) {
     const timer = setTimeout(async () => {
       try {
         const res = await searchProducts(trimmed, { signal: controller.signal, czechOnly })
-        setRemote(res.status === 'ok' ? { status: 'ok', drafts: res.drafts } : res)
+        setRemote(res)
       } catch {
         // Aborted by a newer query; ignore.
       }
@@ -60,7 +62,7 @@ export function SearchView({ onPick, onScan, onCustom }: Props) {
       clearTimeout(timer)
       controller.abort()
     }
-  }, [trimmed, czechOnly])
+  }, [trimmed, czechOnly, retryToken])
 
   const toggleCzech = (on: boolean) => {
     setCzechOnly(on)
@@ -71,8 +73,11 @@ export function SearchView({ onPick, onScan, onCustom }: Props) {
     }
   }
 
+  // Foods already saved (matched by barcode or generic id) are listed under "Your foods" only.
   const savedIds = new Set(local.map((f) => f.externalId).filter(Boolean))
-  const drafts = remote.status === 'ok' ? remote.drafts.filter((d) => !d.externalId || !savedIds.has(d.externalId)) : []
+  const notSaved = (d: FoodDraft) => !d.externalId || !savedIds.has(d.externalId)
+  const basic = trimmed ? searchGenericFoods(trimmed).filter(notSaved) : []
+  const drafts = remote.status === 'ok' ? remote.drafts.filter(notSaved) : []
 
   return (
     <div className="space-y-4">
@@ -101,6 +106,17 @@ export function SearchView({ onPick, onScan, onCustom }: Props) {
         )}
       </section>
 
+      {basic.length > 0 && (
+        <section>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Basic foods <span className="font-normal normal-case">(approximate reference values)</span>
+          </h3>
+          {basic.map((d) => (
+            <FoodRow key={d.externalId} item={d} onClick={() => onPick(d)} />
+          ))}
+        </section>
+      )}
+
       {trimmed.length >= 2 && (
         <section>
           <div className="mb-1 flex items-center justify-between">
@@ -112,12 +128,22 @@ export function SearchView({ onPick, onScan, onCustom }: Props) {
           </div>
           {remote.status === 'loading' && <p className="py-2 text-sm text-slate-500">Searching…</p>}
           {remote.status === 'error' && (
-            <p className="py-2 text-sm text-red-600 dark:text-red-400">
-              Online search failed ({remote.message}). Your saved foods and custom foods still work offline.
-            </p>
+            <div className="py-2 text-sm">
+              <p className="text-red-600 dark:text-red-400">
+                Online search failed ({remote.message}). Open Food Facts is sometimes busy. Your saved, basic and custom
+                foods still work.
+              </p>
+              <Button className="mt-2 px-3 py-1.5 text-sm" onClick={() => setRetryToken((n) => n + 1)}>
+                Try again
+              </Button>
+            </div>
           )}
           {remote.status === 'ok' && drafts.length === 0 && (
-            <p className="py-2 text-sm text-slate-500">No new products found.</p>
+            <p className="py-2 text-sm text-slate-500">
+              {remote.drafts.length === 0
+                ? 'Open Food Facts has no matching products.'
+                : 'Everything found is already in your saved foods.'}
+            </p>
           )}
           {drafts.map((d, i) => (
             <FoodRow key={`${d.externalId}-${i}`} item={d} onClick={() => onPick(d)} />

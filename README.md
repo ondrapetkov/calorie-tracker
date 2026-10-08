@@ -5,10 +5,11 @@ Personal calorie and macro tracker, built as a React + TypeScript PWA. See [docs
 ## Current state: Milestone 2, core log
 
 - **Diary:** pick a day, see calories, protein, carbs, fat, fiber, sugar and salt, grouped by breakfast, lunch, dinner and snacks. Tap an entry to change its amount or meal; deleting offers Undo.
-- **Add food:** search your saved foods first, then Open Food Facts (Czech, popularity-ranked). Scan a barcode or type the digits. Amounts in grams, millilitres or servings, with live macros.
+- **Add food:** search your saved foods first, then bundled **basic foods** (about 100 everyday ingredients with Czech names: meat, fish, eggs, dairy, grains, vegetables, fruit, nuts), then Open Food Facts for packaged products. Scan a barcode, type the digits, or scan from a photo. Amounts in grams, millilitres or servings, with live macros.
 - **Custom foods:** products missing from Open Food Facts, or missing values, are completed once and found instantly next time. A **Foods** tab lets you edit or delete saved foods.
 - **Offline-first:** everything is stored in IndexedDB (Dexie). The app shell and barcode decoder are cached, so the diary, saved foods and custom foods work offline. Online search and barcode lookup need a connection.
 - **Backup:** More, then Export data, saves all tables as JSON.
+- **Basic foods are approximate:** the values in `src/data/genericFoods.ts` are reference values typed from general knowledge of standard tables (mainly USDA), not checked line by line against a database. Check anything you rely on heavily, and edit a saved food in the Foods tab to correct it.
 - Not yet built: targets, meals, weight, water, cloud sync. See [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Develop
