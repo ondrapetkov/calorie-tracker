@@ -21,7 +21,7 @@ A personal, single-user calorie and macro tracker.
 
 - Multi-user, sharing, social features.
 - App Store release or any paid Apple account.
-- Micronutrient tracking (may add fiber, sugar and salt later).
+- Full micronutrient tracking (vitamins, minerals). Fiber, sugar and salt are tracked; nothing beyond that.
 - Photo-based logging.
 - HealthKit or widgets (not possible in a PWA).
 
@@ -91,13 +91,13 @@ All times and dates below are stored as described, never as ambiguous strings.
 
 **profile** (exactly one row)
 
-`sex` ('male' | 'female'), `birthDate` (YYYY-MM-DD), `heightCm`, `activityFactor` (default 1.55), `goal` ('cut' | 'maintain' | 'bulk'), `calorieOffset` (kcal, default -400 for cut), `proteinPerKg` (default 2.0), `fatPerKg` (default 0.9), `waterGoalMl` (default 2500).
+`sex` ('male' | 'female'), `birthDate` (YYYY-MM-DD), `heightCm`, `activityFactor` (default 1.55), `goal` ('cut' | 'maintain' | 'bulk'), `calorieOffset` (kcal, default -400 for cut), `proteinPerKg` (default 2.0), `fatPerKg` (default 0.9), `waterGoalMl` (default 2500), `waterPresets` (array of `{label, ml}`; default Shaker 250, Sport bottle 900, Stanley 1100).
 
 Store the birth date, not the age, so the age stays correct over time.
 
 **food**
 
-`source` ('off' | 'usda' | 'custom'), `externalId` (barcode or FDC id, nullable), `name`, `brand` (nullable), `basis` ('g' | 'ml'), `kcalPer100`, `proteinPer100`, `carbsPer100`, `fatPer100`, `defaultServingG` (nullable), `defaultServingLabel` (nullable, e.g. "1 slice"), `lastUsedAt`, `useCount`.
+`source` ('off' | 'usda' | 'custom'), `externalId` (barcode or FDC id, nullable), `name`, `brand` (nullable), `basis` ('g' | 'ml'), `kcalPer100`, `proteinPer100`, `carbsPer100`, `fatPer100`, `fiberPer100`, `sugarPer100`, `saltPer100` (the last three nullable, since many products omit them), `defaultServingG` (nullable), `defaultServingLabel` (nullable, e.g. "1 slice"), `lastUsedAt`, `useCount`.
 
 All nutrition is normalised to per 100 g (or per 100 ml). A food is written to this table only when it is logged, used in a meal or favourited. Raw search results live in memory only.
 
@@ -117,7 +117,7 @@ All nutrition is normalised to per 100 g (or per 100 ml). A food is written to t
 | `slot` | 'breakfast' \| 'lunch' \| 'dinner' \| 'snack' |
 | `foodId` / `mealId` | Exactly one is set. |
 | `grams` / `servings` | Amount eaten. `grams` for a food, `servings` for a meal. |
-| `kcal`, `protein`, `carbs`, `fat` | Snapshot of what this entry contributes. |
+| `kcal`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, `salt` | Snapshot of what this entry contributes. The last three are nullable (unknown, not zero). |
 | `label` | Display name snapshot, so the diary still reads correctly if the food is deleted. |
 | `loggedAt` | Epoch ms, for ordering within a slot. |
 
@@ -159,6 +159,7 @@ These are estimates, typically within about ±10%. The UI presents them as edita
 - Meal macros = sum of items; per-serving = total / `servings`.
 - Logging a meal creates one `log_entry` for the meal with a snapshot, not one entry per ingredient. Expanding to ingredients can be a later option.
 - Daily totals = sum of non-deleted `log_entry` snapshots for the `date`.
+- Fiber, sugar and salt have soft reference values only (fiber about 14 g per 1,000 kcal, salt at most 5 g, sugar shown without a target). They are displayed as progress hints, not enforced goals, and can be overridden in settings.
 
 ### 5.3 Dates
 
@@ -181,7 +182,7 @@ These are estimates, typically within about ±10%. The UI presents them as edita
 
 ### 6.3 Normalising Open Food Facts data
 
-Use the `nutriments` per-100 g fields (`energy-kcal_100g`, `proteins_100g`, `carbohydrates_100g`, `fat_100g`). Products with missing macros are shown with a warning and can be fixed by saving a custom copy. Where only kJ is present, convert at 4.184 kJ per kcal.
+Use the `nutriments` per-100 g fields (`energy-kcal_100g`, `proteins_100g`, `carbohydrates_100g`, `fat_100g`, `fiber_100g`, `sugars_100g`, `salt_100g`). Missing fiber, sugar or salt is stored as null and excluded from totals, so a daily total means "at least this much" when entries have gaps; the UI marks such days. Products with missing macros are shown with a warning and can be fixed by saving a custom copy. Where only kJ is present, convert at 4.184 kJ per kcal.
 
 ### 6.4 To verify before building
 
@@ -242,11 +243,11 @@ The pull cursor uses the server clock on purpose, so a device with a wrong clock
 
 Mobile uses a bottom tab bar; desktop widths use a sidebar. Same routes.
 
-1. **Today (diary).** Date switcher; calorie ring or bar against target; protein, carbs and fat progress; entries grouped by slot; swipe or tap to edit or delete; water and weight quick-glance.
+1. **Today (diary).** Date switcher (weeks start on Monday wherever a week is shown); calorie ring or bar against target; protein, carbs and fat progress; entries grouped by slot; swipe or tap to edit or delete; water and weight quick-glance.
 2. **Add food.** Search box with recent and frequent foods; scan button; tabs for Foods and Meals; custom food entry. Selecting a food opens an amount editor (grams or serving) with live macros.
 3. **Meals.** List of saved meals; editor with ingredient search, grams per item, servings count and live totals; "log this meal" with a servings multiplier.
 4. **Weight.** Quick add; line chart with a 7-day moving average; list of entries.
-5. **Water.** Quick-add buttons (e.g. 250 ml, 500 ml), daily total against goal, undo.
+5. **Water.** One-tap buttons for the configured presets (Shaker 250 ml, Sport bottle 900 ml, Stanley 1100 ml), a custom amount, daily total against goal, undo. Presets are editable in settings.
 6. **Targets and profile.** Profile fields, goal switch (cut / maintain / bulk), the computed targets with an explanation of the numbers, and manual overrides.
 7. **Settings.** Sync account and status, export and import, units (metric only in v1), install hint.
 
@@ -278,10 +279,14 @@ Mobile uses a bottom tab bar; desktop widths use a sidebar. Same routes.
 5. **Sync.** Supabase project, auth, RLS, the sync engine, status UI, JSON export and import.
 6. **Polish.** PWA install flow, empty states, dark mode, the adaptive target.
 
-## 12. Open questions
+## 12. Resolved decisions
 
-1. Meal slots: are breakfast, lunch, dinner and snack right, or do you want free-form times?
-2. Do you want fiber, sugar and salt shown from the start, since Open Food Facts provides them? They are cheap to store now and expensive to add later.
-3. Default water quick-add sizes, and do you drink mostly from a standard bottle size?
-4. Metric only (kg, cm, g, ml), as assumed?
-5. Does the first week start on Monday for any weekly summaries?
+1. Meal slots are breakfast, lunch, dinner and snack.
+2. Fiber, sugar and salt are stored from the start (nullable per food, snapshotted per log entry).
+3. Metric units only (kg, cm, g, ml).
+4. Water presets: Shaker 250 ml, Sport bottle 900 ml, Stanley 1100 ml, editable in settings.
+5. Weeks start on Monday (weekly averages and summaries).
+
+## 13. Next step
+
+Milestone 1, the scanner spike. See section 11.
