@@ -79,6 +79,12 @@ export interface WaterEntry extends SyncFields {
   loggedAt: number
 }
 
+/** Small key-value store for device-local sync state (cursor, last sync time, signed-in user). */
+export interface SyncMeta {
+  key: string
+  value: unknown
+}
+
 export class AppDB extends Dexie {
   foods!: EntityTable<Food, 'id'>
   logEntries!: EntityTable<LogEntry, 'id'>
@@ -87,6 +93,7 @@ export class AppDB extends Dexie {
   profile!: EntityTable<Profile, 'id'>
   weightEntries!: EntityTable<WeightEntry, 'id'>
   waterEntries!: EntityTable<WaterEntry, 'id'>
+  syncMeta!: EntityTable<SyncMeta, 'key'>
 
   constructor(name = 'calorie-tracker') {
     super(name)
@@ -101,6 +108,9 @@ export class AppDB extends Dexie {
       weightEntries: 'id, date, updatedAt, dirty',
       waterEntries: 'id, date, updatedAt, dirty',
     })
+    // v2: device-local sync state. Kept in IndexedDB (not localStorage) so it is wiped together with
+    // the data it describes; a cursor that outlived its data would hide rows forever.
+    this.version(2).stores({ syncMeta: 'key' })
   }
 }
 

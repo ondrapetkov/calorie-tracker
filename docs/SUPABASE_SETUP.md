@@ -55,6 +55,6 @@ Do not share: the database password, the secret / service_role key, or your logi
 - Free organizations are limited to two active projects.
 - Limits change; check <https://supabase.com/pricing> before relying on a number.
 
-## 7. Then
+## 7. In the app
 
-Send the Project URL and the publishable key. The app will get a sign-in form in More (email and password), a "Sync now" button and a status line, and it will sync in the background after that.
+The project URL and publishable key are set in `src/sync/config.ts` (they can be overridden at build time with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`). In the app open **More**, sign in with the email and password from step 3, and sync starts. The same login works on every device.

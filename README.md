@@ -2,8 +2,9 @@
 
 Personal calorie and macro tracker, built as a React + TypeScript PWA. See [docs/DESIGN.md](docs/DESIGN.md) for the full design.
 
-## Current state: Milestone 4, weight and water
+## Current state: Milestone 5, cloud sync
 
+- **Sync (More tab):** sign in with your email and password and your data syncs through Supabase, so the phone and a desktop browser share one diary. The app always works from its local database first, so it stays fully usable offline: changes are saved on the device and upload automatically a couple of seconds after you make them, when you come back online, and when you reopen the app. Sync now forces a round. If two devices edit the same thing, the newest edit wins. A weight logged twice for one day, or two profiles created before the first sync, are merged to one. Signing out keeps the data on the device and stops syncing. Set-up steps: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
 - **Body tab:** three sections.
   - **Weight:** log a weight for any day (one per day; logging a day again replaces it). Shows the latest weight, the 7-day average and its change over 7 and 30 days, a chart with weigh-ins as dots and the 7-day average as a line (tap or use the arrow keys to read a point, 30 days / 90 days / All), weekly averages (Monday to Sunday) and a history you can correct or delete (with Undo).
   - **Water:** one-tap buttons for your containers (Shaker 250 ml, Sport bottle 900 ml, Stanley 1,100 ml by default), a custom amount, the day's entries, and the last 7 days against your goal. Goal and buttons are editable once your targets are set up (they are stored with your profile). The diary also has a compact water card.
@@ -15,7 +16,7 @@ Personal calorie and macro tracker, built as a React + TypeScript PWA. See [docs
 - **Offline-first:** everything is stored in IndexedDB (Dexie). The app shell and barcode decoder are cached, so the diary, saved foods and custom foods work offline. Online search and barcode lookup need a connection.
 - **Backup:** More, then Export data, saves all tables as JSON.
 - **Basic foods are approximate:** the values in `src/data/genericFoods.ts` are reference values typed from general knowledge of standard tables (mainly USDA), not checked line by line against a database. Check anything you rely on heavily, and edit a saved food in the Foods tab to correct it.
-- Not yet built: cloud sync, the adaptive calorie target. See [docs/DESIGN.md](docs/DESIGN.md).
+- Not yet built: the adaptive calorie target. Two foods saved separately on two devices (for example the same barcode) stay as two entries. See [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Look and feel
 
@@ -59,4 +60,5 @@ Redeploy by pushing to the branch Cloudflare builds from, then reopen the app fr
 7. Targets tab: enter your details and check the numbers against what you expect (about 2,540 kcal, 174 g protein for 87 kg, cutting).
 8. Meals tab: build a meal you eat, log one serving from the Meals tab and another from + Add, then change the servings of a logged entry.
 9. Body, Water: tap your three container buttons, remove one entry, change the goal or a button in Water settings.
-10. Body, Weight: log today's weight and a few past days, read points on the chart by touch, correct one from History.
+10. More, Sync: sign in, watch it say Up to date, then log something on the phone and open the app in a desktop browser (same URL, sign in there) to see it arrive. Also try airplane mode: log a food, see "1 change waiting to upload", turn it off and watch it catch up.
+11. Body, Weight: log today's weight and a few past days, read points on the chart by touch, correct one from History.

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button, Card } from '../../components/ui'
 import { repo } from '../../db/repo'
+import { SyncCard } from './SyncCard'
 
 type Persisted = 'unknown' | 'yes' | 'no' | 'unsupported'
 
@@ -48,10 +49,12 @@ export function MoreScreen() {
     <div className="mx-auto max-w-xl space-y-4 px-4 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)]">
       <h1 className="text-xl font-semibold">More</h1>
 
+      <SyncCard />
+
       <Card>
         <h2 className="font-semibold">Backup</h2>
         <p className="mt-1 text-sm text-muted">
-          Everything is stored on this device. Export a JSON copy of all your data; cloud sync comes in a later milestone.
+          Everything is stored on this device first. Export a JSON copy of all your data as a backup that does not depend on any online service.
         </p>
         <Button className="mt-3 w-full" onClick={exportJson}>
           Export data
@@ -74,7 +77,7 @@ export function MoreScreen() {
         )}
       </Card>
 
-      <p className="text-center text-xs text-muted">Calorie Tracker · milestone 4</p>
+      <p className="text-center text-xs text-muted">Calorie Tracker · milestone 5</p>
     </div>
   )
 }

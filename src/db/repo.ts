@@ -285,14 +285,21 @@ export function createRepo(db: AppDB = defaultDb) {
 
     // ---- profile and weight ---------------------------------------------
 
+    /**
+     * The profile in use. Two devices can each create a profile before their first sync, so there
+     * may briefly be more than one row; the most recently edited one wins.
+     */
     async getProfile(): Promise<Profile | undefined> {
-      return db.profile.filter((p) => p.deletedAt === null).first()
+      const all = await db.profile.filter((p) => p.deletedAt === null).toArray()
+      return all.sort((a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id))[0]
     },
 
     async saveProfile(input: ProfileInput): Promise<void> {
-      const existing = await db.profile.filter((p) => p.deletedAt === null).first()
-      if (existing) await db.profile.update(existing.id, { ...input, ...touch() })
+      const all = await db.profile.filter((p) => p.deletedAt === null).toArray()
+      const [current, ...older] = all.sort((a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id))
+      if (current) await db.profile.update(current.id, { ...input, ...touch() })
       else await db.profile.add({ ...fresh(), ...input })
+      for (const o of older) await db.profile.update(o.id, { deletedAt: Date.now(), ...touch() })
     },
 
     /** Record the weight for a day, replacing that day's entry if there is one. */
@@ -363,7 +370,7 @@ export function createRepo(db: AppDB = defaultDb) {
     },
 
     async getWaterSettings(): Promise<WaterSettings> {
-      const profile = await db.profile.filter((p) => p.deletedAt === null).first()
+      const profile = await this.getProfile()
       return {
         goalMl: profile?.waterGoalMl ?? DEFAULT_WATER_GOAL_ML,
         presets: profile?.waterPresets ?? DEFAULT_WATER_PRESETS,
@@ -372,7 +379,7 @@ export function createRepo(db: AppDB = defaultDb) {
 
     /** Water settings live on the profile row. Returns false when there is no profile yet. */
     async saveWaterSettings(settings: WaterSettings): Promise<boolean> {
-      const profile = await db.profile.filter((p) => p.deletedAt === null).first()
+      const profile = await this.getProfile()
       if (!profile) return false
       await db.profile.update(profile.id, { waterGoalMl: settings.goalMl, waterPresets: settings.presets, ...touch() })
       return true
