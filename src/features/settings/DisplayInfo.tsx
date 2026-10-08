@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Card } from '../../components/ui'
+import { isStandalone, measureSafeArea } from '../../platform/viewport'
 
 interface Info {
   standalone: boolean
+  deficit: number
+  scrollable: boolean
   innerHeight: number
   visualViewportHeight: number | null
   clientHeight: number
@@ -13,22 +16,13 @@ interface Info {
   safeTop: number
 }
 
-function measureSafeArea(side: 'top' | 'bottom'): number {
-  const probe = document.createElement('div')
-  probe.style.cssText = `position:fixed;visibility:hidden;pointer-events:none;padding-${side}:env(safe-area-inset-${side},0px)`
-  document.body.appendChild(probe)
-  const value = parseFloat(getComputedStyle(probe)[side === 'top' ? 'paddingTop' : 'paddingBottom']) || 0
-  probe.remove()
-  return value
-}
-
 function read(): Info {
   const nav = document.querySelector('nav')
   const nav_ = nav ? nav.getBoundingClientRect() : null
   return {
-    standalone:
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (navigator as unknown as { standalone?: boolean }).standalone === true,
+    standalone: isStandalone(),
+    deficit: parseFloat(document.documentElement.style.getPropertyValue('--viewport-deficit')) || 0,
+    scrollable: document.documentElement.scrollHeight > window.innerHeight,
     innerHeight: window.innerHeight,
     visualViewportHeight: window.visualViewport ? Math.round(window.visualViewport.height) : null,
     clientHeight: document.documentElement.clientHeight,
@@ -63,6 +57,8 @@ export function DisplayInfo() {
     ['App area height', String(info.rootHeight)],
     ['Tab bar bottom edge', info.navBottom === null ? 'n/a' : String(info.navBottom)],
     ['Safe area top / bottom', `${info.safeTop} / ${info.safeBottom}`],
+    ['Page can scroll (should be yes)', info.scrollable ? 'yes' : 'no'],
+    ['Extra height applied', String(info.deficit)],
   ]
   return (
     <Card>

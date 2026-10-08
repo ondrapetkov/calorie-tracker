@@ -26,16 +26,16 @@ html {
 }
 
 /*
- * App shell: the page itself never scrolls. #root is pinned to the layout viewport with
- * position: fixed (the same box fixed elements already use, which reaches the true bottom
- * on iOS), so we do not depend on 100%, 100vh or 100dvh heights. On iOS home-screen apps
- * those can come out shorter than the screen and leave a gap under the tab bar.
+ * App shell. #root is pinned to the layout viewport with position: fixed and holds the scrolling
+ * screen area plus the tab bar, so no viewport-unit heights are involved in the layout.
+ *
+ * The document itself must stay scrollable by a pixel (the spacer below). On iOS home-screen
+ * apps a document that cannot scroll gets a layout viewport that is shorter than the screen by
+ * the status-bar height, which left a gap under the tab bar on every non-scrolling screen.
  */
 html,
 body {
   margin: 0;
-  height: 100%;
-  overflow: hidden;
   background: var(--color-bg);
   color: var(--color-fg);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -47,11 +47,18 @@ body {
   position: fixed;
   top: 0;
   right: 0;
-  bottom: 0;
+  /* Set by src/platform/viewport.ts only when iOS reports a viewport that is too short. */
+  bottom: calc(-1 * var(--viewport-deficit, 0px));
   left: 0;
   display: flex;
   flex-direction: column;
   background: var(--color-bg);
+}
+
+.scroll-spacer {
+  height: calc(100vh + 1px);
+  visibility: hidden;
+  pointer-events: none;
 }
 
 input,
