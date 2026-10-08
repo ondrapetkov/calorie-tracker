@@ -385,6 +385,21 @@ export function createRepo(db: AppDB = defaultDb) {
       return true
     },
 
+    /** Live log entries with a date from `from` to `to`, both included. */
+    async entriesInRange(from: string, to: string): Promise<LogEntry[]> {
+      return db.logEntries
+        .where('date')
+        .between(from, to, true, true)
+        .filter((e) => e.deletedAt === null)
+        .toArray()
+    },
+
+    /** The days between `from` and `to` that have at least one entry. */
+    async datesWithEntries(from: string, to: string): Promise<Set<string>> {
+      const rows = await this.entriesInRange(from, to)
+      return new Set(rows.map((e) => e.date))
+    },
+
     // ---- backup ---------------------------------------------------------
 
     /** Every table as plain JSON, including soft-deleted rows. */

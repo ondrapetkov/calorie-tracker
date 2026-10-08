@@ -6,7 +6,7 @@ import type { Food } from '../../db/schema'
 import { FoodForm } from '../add-food/FoodForm'
 import { FoodRow } from '../add-food/FoodRow'
 
-export function FoodsScreen() {
+export function FoodsPanel() {
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<Food | null>(null)
   const [creating, setCreating] = useState(false)
@@ -15,8 +15,7 @@ export function FoodsScreen() {
   const foods: Food[] = loadedFoods ?? []
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-4 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)]">
-      <h1 className="text-xl font-semibold">Foods</h1>
+    <div className="space-y-4">
       <div className="flex gap-2">
         <input
           className={inputCls}

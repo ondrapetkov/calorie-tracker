@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Button, Card } from '../../components/ui'
 import { repo } from '../../db/repo'
+import { Sheet } from '../../components/ui'
+import { FoodsPanel } from '../foods/FoodsPanel'
 import { SyncCard } from './SyncCard'
 
 type Persisted = 'unknown' | 'yes' | 'no' | 'unsupported'
@@ -13,6 +15,7 @@ async function readPersisted(): Promise<Persisted> {
 export function MoreScreen() {
   const [persisted, setPersisted] = useState<Persisted>('unknown')
   const [message, setMessage] = useState<string | null>(null)
+  const [foodsOpen, setFoodsOpen] = useState(false)
 
   useEffect(() => {
     void readPersisted().then(setPersisted)
@@ -52,6 +55,16 @@ export function MoreScreen() {
       <SyncCard />
 
       <Card>
+        <h2 className="font-semibold">Saved foods</h2>
+        <p className="mt-1 text-sm text-muted">
+          Foods you have logged or created. Edit their values, fix a missing serving size, or delete ones you no longer use.
+        </p>
+        <Button className="mt-3 w-full" onClick={() => setFoodsOpen(true)}>
+          Manage saved foods
+        </Button>
+      </Card>
+
+      <Card>
         <h2 className="font-semibold">Backup</h2>
         <p className="mt-1 text-sm text-muted">
           Everything is stored on this device first. Export a JSON copy of all your data as a backup that does not depend on any online service.
@@ -77,7 +90,13 @@ export function MoreScreen() {
         )}
       </Card>
 
-      <p className="text-center text-xs text-muted">Calorie Tracker · milestone 5</p>
+      {foodsOpen && (
+        <Sheet title="Saved foods" onClose={() => setFoodsOpen(false)}>
+          <FoodsPanel />
+        </Sheet>
+      )}
+
+      <p className="text-center text-xs text-muted">Calorie Tracker · milestone 6</p>
     </div>
   )
 }

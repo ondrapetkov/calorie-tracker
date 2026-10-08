@@ -277,3 +277,17 @@ describe('water', () => {
     expect(await repo.getWaterSettings()).toEqual({ goalMl: 3000, presets: [{ label: 'Cup', ml: 300 }] })
   })
 })
+
+describe('date ranges', () => {
+  it('finds entries between two dates, inclusive, ignoring deleted ones', async () => {
+    const food = await repo.saveFood(oats)
+    await repo.logFood({ food, grams: 50, date: '2026-10-01', slot: 'breakfast' })
+    await repo.logFood({ food, grams: 50, date: '2026-10-05', slot: 'lunch' })
+    const gone = await repo.logFood({ food, grams: 50, date: '2026-10-05', slot: 'dinner' })
+    await repo.logFood({ food, grams: 50, date: '2026-10-09', slot: 'snack' })
+    await repo.deleteEntry(gone.id)
+    expect((await repo.entriesInRange('2026-10-01', '2026-10-05')).length).toBe(2)
+    expect([...(await repo.datesWithEntries('2026-10-02', '2026-10-31'))].sort()).toEqual(['2026-10-05', '2026-10-09'])
+    expect((await repo.datesWithEntries('2026-11-01', '2026-11-30')).size).toBe(0)
+  })
+})

@@ -291,6 +291,7 @@ Mobile uses a bottom tab bar; desktop widths use a sidebar. Same routes.
 ## 13. Progress
 
 - Milestone 1 (scanner spike): done and verified on iPhone.
+- Milestone 6 (calendar and statistics): implemented. A month calendar from the diary's date, and a Stats tab (week, month, year) built from the logged entries; the Foods tab moved into More. Statistics average over days that have entries.
 - Milestone 5 (cloud sync): implemented. Supabase email/password sign-in; local-first sync of every table; push of dirty rows through `push_records` (newest edit wins), pull by server time with a 10 s overlap, paged by offset; a deterministic merge for the profile and one-weight-per-day; sync state kept in IndexedDB (`syncMeta`); status and manual sync in More.
 - Milestone 4 (weight and water): implemented. A Body tab holds Weight (log, stats, chart with 7-day average, weekly Monday-based averages, history), Water (presets, entries, 7-day bars, settings) and Targets. Water also appears as a compact card in the diary. Water settings are stored on the profile row, so they can be edited once targets are set up.
 - Milestone 3 (meals and targets): implemented. Targets screen with goal switch and fine-tuning, meal editor and logging (one diary entry per logged meal), targets and progress in the diary. Weight is entered on the Targets screen for now (stored as today's weight entry); the weight and water screens are milestone 4.

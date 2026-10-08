@@ -11,12 +11,14 @@ import { AddFoodFlow } from '../add-food/AddFoodFlow'
 import { WaterCard } from '../body/WaterCard'
 import { useTargets } from '../targets/useTargets'
 import { DayTotals } from './DayTotals'
+import { CalendarSheet } from './CalendarSheet'
 import { EditEntrySheet } from './EditEntrySheet'
 
 export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
   const [date, setDate] = useState(localDate)
   const [adding, setAdding] = useState<Slot | null>(null)
   const [editing, setEditing] = useState<LogEntry | null>(null)
+  const [calendarOpen, setCalendarOpen] = useState(false)
   const [showToast, toastNode] = useToast({ raised: true })
 
   // Undefined while the first query runs, so we do not flash an empty day ("0 kcal") on every tab switch.
@@ -32,13 +34,30 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
         <Button variant="ghost" className="px-3" onClick={() => setDate(addDays(date, -1))} aria-label="Previous day">
           ‹
         </Button>
-        <button type="button" className="text-lg font-semibold" onClick={() => setDate(localDate())}>
+        <button
+          type="button"
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-lg font-semibold active:bg-surface-2"
+          aria-haspopup="dialog"
+          aria-label={`${dayLabel(date)}, open calendar`}
+          onClick={() => setCalendarOpen(true)}
+        >
           {dayLabel(date)}
+          <svg viewBox="0 0 24 24" className="h-4 w-4 text-accent" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
         </button>
         <Button variant="ghost" className="px-3" onClick={() => setDate(addDays(date, 1))} aria-label="Next day">
           ›
         </Button>
       </div>
+
+      {date !== localDate() && (
+        <div className="-mt-2 text-center">
+          <Button variant="ghost" className="px-3 py-1 text-sm" onClick={() => setDate(localDate())}>
+            Back to today
+          </Button>
+        </div>
+      )}
 
       {loading ? (
         <div className="h-48 animate-pulse rounded-xl bg-surface-2" aria-label="Loading" />
@@ -97,6 +116,16 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
 
       {toastNode}
 
+      {calendarOpen && (
+        <CalendarSheet
+          selected={date}
+          onSelect={(d) => {
+            setDate(d)
+            setCalendarOpen(false)
+          }}
+          onClose={() => setCalendarOpen(false)}
+        />
+      )}
       {adding && (
         <AddFoodFlow
           mode={{ kind: 'log', date, slot: adding, onLogged: (message) => showToast(message) }}

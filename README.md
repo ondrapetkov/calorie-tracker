@@ -2,8 +2,11 @@
 
 Personal calorie and macro tracker, built as a React + TypeScript PWA. See [docs/DESIGN.md](docs/DESIGN.md) for the full design.
 
-## Current state: Milestone 5, cloud sync
+## Current state: Milestone 6, calendar and statistics
 
+- **Calendar:** tap the date at the top of the Diary to open a month calendar (weeks start on Monday). Days with diary entries carry a dot. Pick any day, jump months or years with the arrows, or press Today. A "Back to today" link shows while you look at another day.
+- **Stats tab:** weekly, monthly and yearly calorie statistics with a previous/next period control. Shows the average calories per logged day (days you did not log are not counted as zero), days logged, total calories, the difference to your daily target, average protein, carbs and fat with their share of macro calories, a bar chart (calories per day for a week or month, average per logged day for each month of a year) with your target as a line, and a list with the exact numbers. Tap a bar, or use the arrow keys, to read it. Comparisons use your current target.
+- **Saved foods** moved from the tab bar into More, to make room for Stats.
 - **Sync (More tab):** sign in with your email and password and your data syncs through Supabase, so the phone and a desktop browser share one diary. The app always works from its local database first, so it stays fully usable offline: changes are saved on the device and upload automatically a couple of seconds after you make them, when you come back online, and when you reopen the app. Sync now forces a round. If two devices edit the same thing, the newest edit wins. A weight logged twice for one day, or two profiles created before the first sync, are merged to one. Signing out keeps the data on the device and stops syncing. Set-up steps: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
 - **Body tab:** three sections.
   - **Weight:** log a weight for any day (one per day; logging a day again replaces it). Shows the latest weight, the 7-day average and its change over 7 and 30 days, a chart with weigh-ins as dots and the 7-day average as a line (tap or use the arrow keys to read a point, 30 days / 90 days / All), weekly averages (Monday to Sunday) and a history you can correct or delete (with Undo).
@@ -65,4 +68,5 @@ Redeploy by pushing to the branch Cloudflare builds from, then reopen the app fr
 8. Meals tab: build a meal you eat, log one serving from the Meals tab and another from + Add, then change the servings of a logged entry.
 9. Body, Water: tap your three container buttons, remove one entry, change the goal or a button in Water settings.
 10. More, Sync: sign in, watch it say Up to date, then log something on the phone and open the app in a desktop browser (same URL, sign in there) to see it arrive. Also try airplane mode: log a food, see "1 change waiting to upload", turn it off and watch it catch up.
-11. Body, Weight: log today's weight and a few past days, read points on the chart by touch, correct one from History.
+11. Diary: tap the date, pick another day, then check Stats for the week, month and year.
+12. Body, Weight: log today's weight and a few past days, read points on the chart by touch, correct one from History.
