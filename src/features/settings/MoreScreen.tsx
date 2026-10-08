@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { DisplayInfo } from './DisplayInfo'
 import { Button, Card } from '../../components/ui'
 import { repo } from '../../db/repo'
 
@@ -73,6 +74,8 @@ export function MoreScreen() {
           </Button>
         )}
       </Card>
+
+      <DisplayInfo />
 
       <p className="text-center text-xs text-muted">Calorie Tracker · milestone 3</p>
     </div>

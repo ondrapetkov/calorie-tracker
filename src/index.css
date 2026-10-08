@@ -26,19 +26,15 @@ html {
 }
 
 /*
- * App shell: the body never scrolls. The screen area scrolls and the tab bar sits below it in
- * normal flow. This avoids iOS moving a fixed bottom bar when a page is too short to scroll.
+ * App shell: the page itself never scrolls. #root is pinned to the layout viewport with
+ * position: fixed (the same box fixed elements already use, which reaches the true bottom
+ * on iOS), so we do not depend on 100%, 100vh or 100dvh heights. On iOS home-screen apps
+ * those can come out shorter than the screen and leave a gap under the tab bar.
  */
 html,
-body,
-#root {
-  height: 100%;
-}
-
 body {
-  position: fixed;
-  inset: 0;
-  width: 100%;
+  margin: 0;
+  height: 100%;
   overflow: hidden;
   background: var(--color-bg);
   color: var(--color-fg);
@@ -48,15 +44,14 @@ body {
 }
 
 #root {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
-}
-
-@supports (height: 100dvh) {
-  #root {
-    height: 100dvh;
-  }
+  background: var(--color-bg);
 }
 
 input,
