@@ -6,7 +6,6 @@ interface Props {
 }
 
 interface Stats {
-  resolution: string
   avgDecodeMs: number
   framesPerSec: number
 }
@@ -18,6 +17,8 @@ export function Scanner({ onDetected }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const runningRef = useRef(false)
+  const onDetectedRef = useRef(onDetected)
+  onDetectedRef.current = onDetected
   const [active, setActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<Stats | null>(null)
@@ -56,13 +57,12 @@ export function Scanner({ onDetected }: Props) {
 
         if (code && runningRef.current) {
           stop()
-          onDetected(code)
+          onDetectedRef.current(code)
           return
         }
         const now = performance.now()
         if (now - windowStart > 1000) {
           setStats({
-            resolution: `${video.videoWidth}x${video.videoHeight} (decoding at ${canvas.width}x${canvas.height})`,
             avgDecodeMs: Math.round(decodeTotal / frames),
             framesPerSec: Math.round((frames * 1000) / (now - windowStart)),
           })
@@ -73,7 +73,7 @@ export function Scanner({ onDetected }: Props) {
       }
       await new Promise((r) => setTimeout(r, 30))
     }
-  }, [onDetected, stop])
+  }, [stop])
 
   const start = useCallback(async () => {
     setError(null)
@@ -110,25 +110,38 @@ export function Scanner({ onDetected }: Props) {
 
   return (
     <div>
-      <div className="viewfinder">
-        <video ref={videoRef} playsInline muted />
-        {active && <div className="reticle" />}
-        {!active && <div className="placeholder">Camera off</div>}
+      <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-black">
+        <video ref={videoRef} playsInline muted className="h-full w-full object-cover" />
+        {active ? (
+          <div className="absolute inset-x-[10%] inset-y-[35%] rounded-lg border-2 border-emerald-400" />
+        ) : (
+          <div className="absolute inset-0 grid place-items-center text-sm text-slate-400">Camera off</div>
+        )}
       </div>
       <canvas ref={canvasRef} hidden />
-      <div className="row">
+      <div className="mt-3">
         {active ? (
-          <button onClick={stop}>Stop camera</button>
+          <button
+            type="button"
+            onClick={stop}
+            className="w-full rounded-lg border border-slate-300 px-4 py-2.5 font-medium dark:border-slate-700"
+          >
+            Stop camera
+          </button>
         ) : (
-          <button className="primary" onClick={start}>
+          <button
+            type="button"
+            onClick={start}
+            className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 font-medium text-white active:bg-emerald-700"
+          >
             Start camera
           </button>
         )}
       </div>
-      {error && <p className="error">Camera error: {error}</p>}
+      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">Camera error: {error}</p>}
       {stats && active && (
-        <p className="muted">
-          {stats.resolution} · {stats.avgDecodeMs} ms/decode · {stats.framesPerSec} fps
+        <p className="mt-2 text-xs text-slate-500">
+          {stats.avgDecodeMs} ms/decode · {stats.framesPerSec} fps
         </p>
       )}
     </div>

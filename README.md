@@ -2,14 +2,14 @@
 
 Personal calorie and macro tracker, built as a React + TypeScript PWA. See [docs/DESIGN.md](docs/DESIGN.md) for the full design.
 
-## Current state: Milestone 1, scanner spike
+## Current state: Milestone 2, core log
 
-A single page that answers one question: can an iPhone scan real products in Safari and look them up in Open Food Facts?
-
-- Live camera barcode scanning (EAN-13, EAN-8, UPC-A, UPC-E) decoded in the browser with `zxing-wasm`. The decoder WASM is bundled and precached, not loaded from a CDN.
-- Open Food Facts lookup, with per-100 g macros including fiber, sugar and salt (kJ converted to kcal when kcal is missing).
-- Fallbacks: type the digits, or decode a barcode from a photo.
-- Live diagnostics under the camera: resolution, decode time per frame, frames per second.
+- **Diary:** pick a day, see calories, protein, carbs, fat, fiber, sugar and salt, grouped by breakfast, lunch, dinner and snacks. Tap an entry to change its amount or meal; deleting offers Undo.
+- **Add food:** search your saved foods first, then Open Food Facts (Czech, popularity-ranked). Scan a barcode or type the digits. Amounts in grams, millilitres or servings, with live macros.
+- **Custom foods:** products missing from Open Food Facts, or missing values, are completed once and found instantly next time. A **Foods** tab lets you edit or delete saved foods.
+- **Offline-first:** everything is stored in IndexedDB (Dexie). The app shell and barcode decoder are cached, so the diary, saved foods and custom foods work offline. Online search and barcode lookup need a connection.
+- **Backup:** More, then Export data, saves all tables as JSON.
+- Not yet built: targets, meals, weight, water, cloud sync. See [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Develop
 
@@ -18,6 +18,7 @@ npm install
 npm run dev        # http://localhost:5173, also reachable on your LAN
 npm run build      # type-check + production build into dist/
 npm run preview    # serve the production build locally
+npm test           # unit tests (domain logic, parsing, database layer)
 ```
 
 Camera access needs HTTPS or `localhost`, so testing on a phone means deploying (below) rather than opening the LAN dev URL.
@@ -35,16 +36,13 @@ Camera access needs HTTPS or `localhost`, so testing on a phone means deploying 
 
 Alternative without Git integration: `npm run build && npx wrangler pages deploy dist`.
 
-## Test on the iPhone
+## Trying milestone 2 on the iPhone
 
-1. Open the deployed URL in Safari, tap Share, then Add to Home Screen, and launch it from the new icon (this is the mode the real app will run in).
-2. Tap Start camera and allow access. Scan five or six products you actually eat, in kitchen lighting. Try a small barcode, a curved can or bottle, and a shiny wrapper.
-3. Note, for each: did it scan, how long did it take, and did Open Food Facts have it with sensible macros?
-4. Check the diagnostics line: decode time per frame and fps.
-5. Turn on airplane mode, reopen the app from the Home Screen and confirm it still loads and the camera still decodes (the lookup will fail offline, which is expected).
+Redeploy by pushing to the branch Cloudflare builds from, then reopen the app from the Home Screen (the service worker updates itself; close and reopen once if you still see the old version).
 
-## What to report back
-
-- Scan success rate and typical time to detect.
-- Any camera permission or autofocus problems in the Home Screen app.
-- Whether the Open Food Facts lookup works from the browser (this checks the CORS question in the design doc) and how well Czech products are covered.
+1. Search a food you eat ("ovesné vločky") and log it. Check the Open Food Facts results and whether the macros look right.
+2. Scan a product, log it with servings, and check its fiber, sugar and salt.
+3. Create a custom food for something Open Food Facts lacks, and log it again from search.
+4. Edit an entry's amount, delete one and use Undo, then flip between days.
+5. In airplane mode, log a saved food. Then close and reopen the app and confirm the data is still there.
+6. More, Export data: check that the share sheet or a file download works on iOS.

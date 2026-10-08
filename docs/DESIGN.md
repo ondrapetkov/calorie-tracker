@@ -30,7 +30,7 @@ A personal, single-user calorie and macro tracker.
 | Area | Decision |
 |---|---|
 | Client | React + TypeScript, built with Vite, as a PWA |
-| UI | Tailwind CSS + shadcn/ui |
+| UI | Tailwind CSS with small hand-written components (shadcn/ui is not used, to avoid depending on its CLI and registry) |
 | iPhone | Installed to the Home Screen from Safari |
 | Desktop | Installed PWA via Chrome or Edge (or a plain browser tab) |
 | Local store | Dexie (IndexedDB) is the source of truth |
@@ -97,7 +97,7 @@ Store the birth date, not the age, so the age stays correct over time.
 
 **food**
 
-`source` ('off' | 'usda' | 'custom'), `externalId` (barcode or FDC id, nullable), `name`, `brand` (nullable), `basis` ('g' | 'ml'), `kcalPer100`, `proteinPer100`, `carbsPer100`, `fatPer100`, `fiberPer100`, `sugarPer100`, `saltPer100` (the last three nullable, since many products omit them), `defaultServingG` (nullable), `defaultServingLabel` (nullable, e.g. "1 slice"), `lastUsedAt`, `useCount`.
+`source` ('off' | 'usda' | 'custom'), `externalId` (barcode or FDC id, nullable), `name`, `brand` (nullable), `basis` ('g' | 'ml'), `per100` (an object with `kcal`, `protein`, `carbs`, `fat`, and `fiber`, `sugar`, `salt`; the last three nullable, since many products omit them), `defaultServingG` (nullable), `defaultServingLabel` (nullable, e.g. "1 slice"), `lastUsedAt`, `useCount`.
 
 All nutrition is normalised to per 100 g (or per 100 ml). A food is written to this table only when it is logged, used in a meal or favourited. Raw search results live in memory only.
 
@@ -116,7 +116,7 @@ All nutrition is normalised to per 100 g (or per 100 ml). A food is written to t
 | `date` | Local calendar day, `YYYY-MM-DD`. This is the grouping key, not a UTC timestamp. |
 | `slot` | 'breakfast' \| 'lunch' \| 'dinner' \| 'snack' |
 | `foodId` / `mealId` | Exactly one is set. |
-| `grams` / `servings` | Amount eaten. `grams` for a food, `servings` for a meal. |
+| `grams` / `unit` / `servings` | Amount eaten. `grams` (with `unit` 'g' or 'ml') for a food, `servings` for a meal. |
 | `kcal`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, `salt` | Snapshot of what this entry contributes. The last three are nullable (unknown, not zero). |
 | `label` | Display name snapshot, so the diary still reads correctly if the food is deleted. |
 | `loggedAt` | Epoch ms, for ordering within a slot. |
@@ -170,7 +170,7 @@ These are estimates, typically within about ±10%. The UI presents them as edita
 ### 6.1 Search order
 
 1. Local `food` table (instant, offline, ranked by `useCount` and `lastUsedAt`).
-2. Open Food Facts text search, in Czech (`cc=cz`, `lc=cs`), debounced and cancelled on new input.
+2. Open Food Facts text search via `cgi/search.pl`, in Czech (`cc=cz`, `lc=cs`), sorted by popularity (`unique_scans_n`), debounced and cancelled on new input. An optional "sold in CZ only" filter restricts results by country tag.
 3. Custom food form, if nothing fits.
 
 ### 6.2 Barcode
@@ -287,6 +287,7 @@ Mobile uses a bottom tab bar; desktop widths use a sidebar. Same routes.
 4. Water presets: Shaker 250 ml, Sport bottle 900 ml, Stanley 1100 ml, editable in settings.
 5. Weeks start on Monday (weekly averages and summaries).
 
-## 13. Next step
+## 13. Progress
 
-Milestone 1, the scanner spike. See section 11.
+- Milestone 1 (scanner spike): done and verified on iPhone.
+- Milestone 2 (core log): implemented. Diary with day totals, food search (saved foods, then Open Food Facts), barcode scan, custom foods, entry editing with undo, a Foods tab and JSON export.

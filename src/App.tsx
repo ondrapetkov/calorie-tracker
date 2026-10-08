@@ -1,121 +1,46 @@
-import { useCallback, useState } from 'react'
-import { Scanner } from './Scanner'
-import { decodeBarcode } from './decoder'
-import { lookupBarcode, type LookupResult, type Nutrition } from './off'
+import { useState, type ReactNode } from 'react'
+import { DiaryScreen } from './features/diary/DiaryScreen'
+import { FoodsScreen } from './features/foods/FoodsScreen'
+import { MoreScreen } from './features/settings/MoreScreen'
 
-const fmt = (v: number | null, digits = 1) => (v === null ? '—' : v.toFixed(digits))
+type Tab = 'diary' | 'foods' | 'more'
 
-function NutritionTable({ n }: { n: Nutrition }) {
-  return (
-    <table>
-      <tbody>
-        <tr><td>Energy</td><td>{fmt(n.kcal, 0)} kcal</td></tr>
-        <tr><td>Protein</td><td>{fmt(n.protein)} g</td></tr>
-        <tr><td>Carbs</td><td>{fmt(n.carbs)} g</td></tr>
-        <tr><td>Fat</td><td>{fmt(n.fat)} g</td></tr>
-        <tr><td>Fiber</td><td>{fmt(n.fiber)} g</td></tr>
-        <tr><td>Sugar</td><td>{fmt(n.sugar)} g</td></tr>
-        <tr><td>Salt</td><td>{fmt(n.salt, 2)} g</td></tr>
-      </tbody>
-    </table>
-  )
-}
+const icon = (d: string) => (
+  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d={d} />
+  </svg>
+)
+
+const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
+  { id: 'diary', label: 'Diary', icon: icon('M5 4h14v16H5zM8 9h8M8 13h8M8 17h5') },
+  { id: 'foods', label: 'Foods', icon: icon('M4 11h16M6 11a6 6 0 0 0 12 0M9 7c0-2 3-2 3-4M14 7c0-2 3-2 3-4') },
+  { id: 'more', label: 'More', icon: icon('M5 12h.01M12 12h.01M19 12h.01') },
+]
 
 export default function App() {
-  const [barcode, setBarcode] = useState<string | null>(null)
-  const [result, setResult] = useState<LookupResult | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [manual, setManual] = useState('')
-  const [photoMsg, setPhotoMsg] = useState<string | null>(null)
-
-  const lookup = useCallback(async (code: string) => {
-    setBarcode(code)
-    setResult(null)
-    setLoading(true)
-    setResult(await lookupBarcode(code))
-    setLoading(false)
-  }, [])
-
-  const submitManual = (e: React.FormEvent) => {
-    e.preventDefault()
-    const code = manual.trim()
-    if (/^\d{8,14}$/.test(code)) void lookup(code)
-  }
-
-  const onPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
-    setPhotoMsg('Decoding…')
-    const code = await decodeBarcode(file)
-    if (code) {
-      setPhotoMsg(null)
-      void lookup(code)
-    } else {
-      setPhotoMsg('No barcode found in that photo.')
-    }
-  }
-
+  const [tab, setTab] = useState<Tab>('diary')
   return (
-    <main>
-      <h1>Scanner spike</h1>
-      <p className="muted">Milestone 1: can this phone scan real products and look them up?</p>
-
-      <section>
-        <h2>Scan</h2>
-        <Scanner onDetected={lookup} />
-      </section>
-
-      <section>
-        <h2>Fallbacks</h2>
-        <form onSubmit={submitManual} className="row">
-          <input
-            inputMode="numeric"
-            pattern="\d*"
-            placeholder="Type barcode digits"
-            value={manual}
-            onChange={(e) => setManual(e.target.value)}
-          />
-          <button type="submit">Look up</button>
-        </form>
-        <label className="file">
-          Or decode from a photo
-          <input type="file" accept="image/*" onChange={onPhoto} />
-        </label>
-        {photoMsg && <p className="muted">{photoMsg}</p>}
-      </section>
-
-      {barcode && (
-        <section>
-          <h2>Result</h2>
-          <p>
-            Barcode <code>{barcode}</code>
-          </p>
-          {loading && <p className="muted">Looking up…</p>}
-          {result?.status === 'found' && (
-            <>
-              <p>
-                <strong>{result.product.name}</strong>
-                {result.product.brand && <> · {result.product.brand}</>}
-              </p>
-              <p className="muted">
-                Per 100 g{result.product.servingSize && <> · serving {result.product.servingSize}</>}
-                {' · '}looked up in {result.ms} ms
-              </p>
-              <NutritionTable n={result.product.per100} />
-            </>
-          )}
-          {result?.status === 'not-found' && (
-            <p>Not in Open Food Facts ({result.ms} ms). This would become a custom food.</p>
-          )}
-          {result?.status === 'error' && (
-            <p className="error">
-              Lookup failed after {result.ms} ms: {result.message}. If this says "Load failed" or
-              "Failed to fetch", it may be a network or CORS problem.
-            </p>
-          )}
-        </section>
-      )}
-    </main>
+    <div className="min-h-full">
+      {tab === 'diary' && <DiaryScreen />}
+      {tab === 'foods' && <FoodsScreen />}
+      {tab === 'more' && <MoreScreen />}
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] dark:border-slate-800 dark:bg-slate-900">
+        <div className="mx-auto flex max-w-xl">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs ${
+                tab === t.id ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'
+              }`}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </nav>
+    </div>
   )
 }
