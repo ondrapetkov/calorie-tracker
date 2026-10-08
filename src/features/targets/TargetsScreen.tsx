@@ -21,10 +21,10 @@ const valid = (n: number | null): n is number => n !== null && !Number.isNaN(n)
 export function TargetsScreen() {
   const data = useLiveQuery(async () => ({ profile: await repo.getProfile(), weight: await repo.latestWeight() }), [])
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-4 pb-28 pt-[calc(env(safe-area-inset-top)+1rem)]">
+    <div className="mx-auto max-w-xl space-y-4 px-4 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)]">
       <h1 className="text-xl font-semibold">Targets</h1>
       {!data ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-muted">Loading…</p>
       ) : (
         <TargetsForm profile={data.profile} weightKg={data.weight?.kg} />
       )}
@@ -98,7 +98,7 @@ function TargetsForm({ profile, weightKg }: { profile: Profile | undefined; weig
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted">
         Daily targets are estimated from your body and goal. They are a starting point, not medical advice: adjust them
         based on how your weight actually changes.
       </p>
@@ -107,27 +107,27 @@ function TargetsForm({ profile, weightKg }: { profile: Profile | undefined; weig
         <Card>
           <div className="text-center">
             <span className="text-4xl font-semibold">{formatNumber(targets.kcal)}</span>
-            <span className="ml-1 text-slate-500">kcal / day</span>
+            <span className="ml-1 text-muted">kcal / day</span>
           </div>
           <div className="mt-3 grid grid-cols-3 text-center">
-            <div><div className="font-semibold">{targets.protein} g</div><div className="text-xs text-slate-500">Protein</div></div>
-            <div><div className="font-semibold">{targets.carbs} g</div><div className="text-xs text-slate-500">Carbs</div></div>
-            <div><div className="font-semibold">{targets.fat} g</div><div className="text-xs text-slate-500">Fat</div></div>
+            <div><div className="font-semibold">{targets.protein} g</div><div className="text-xs text-muted">Protein</div></div>
+            <div><div className="font-semibold">{targets.carbs} g</div><div className="text-xs text-muted">Carbs</div></div>
+            <div><div className="font-semibold">{targets.fat} g</div><div className="text-xs text-muted">Fat</div></div>
           </div>
-          <p className="mt-3 text-center text-xs text-slate-500">
+          <p className="mt-3 text-center text-xs text-muted">
             Resting energy {formatNumber(targets.bmr)} kcal · maintenance about {formatNumber(targets.tdee)} kcal ·
             adjustment {valid(o) && o > 0 ? '+' : ''}
             {valid(o) ? o : 0} kcal · fiber about {targets.fiber} g · salt up to {targets.salt} g
           </p>
           {targets.warnings.map((msg) => (
-            <p key={msg} className="mt-2 rounded-lg bg-amber-100 p-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            <p key={msg} className="mt-2 rounded-lg bg-warn-bg p-2 text-sm text-warn">
               {msg}
             </p>
           ))}
         </Card>
       ) : (
         <Card>
-          <p className="text-sm text-slate-500">Fill in the fields below to see your targets.</p>
+          <p className="text-sm text-muted">Fill in the fields below to see your targets.</p>
         </Card>
       )}
 
@@ -157,17 +157,17 @@ function TargetsForm({ profile, weightKg }: { profile: Profile | undefined; weig
       </Field>
 
       <div>
-        <div className="mb-1 text-sm font-medium text-slate-600 dark:text-slate-400">Goal</div>
+        <div className="mb-1 text-sm font-medium text-muted">Goal</div>
         <div className="grid grid-cols-3 gap-2">
           {(Object.keys(GOAL_LABELS) as Goal[]).map((g) => (
-            <Button key={g} variant={goal === g ? 'primary' : 'secondary'} className="px-2" onClick={() => chooseGoal(g)}>
+            <Button key={g} variant={goal === g ? 'primary' : 'secondary'} className="px-1 text-sm" onClick={() => chooseGoal(g)}>
               {GOAL_LABELS[g]}
             </Button>
           ))}
         </div>
       </div>
 
-      <details className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+      <details className="rounded-xl border border-line p-3">
         <summary className="cursor-pointer text-sm font-medium">Fine-tune</summary>
         <div className="mt-3 space-y-3">
           <Field label="Calorie adjustment (kcal per day)" hint="Negative to lose weight, positive to gain. Picking a goal sets a default.">
@@ -181,14 +181,14 @@ function TargetsForm({ profile, weightKg }: { profile: Profile | undefined; weig
               <input className={inputCls} inputMode="decimal" value={fatPerKg} onChange={(e) => touch(setFatPerKg)(e.target.value)} />
             </Field>
           </div>
-          <p className="text-xs text-slate-500">Carbs are whatever calories remain after protein and fat.</p>
+          <p className="text-xs text-muted">Carbs are whatever calories remain after protein and fat.</p>
         </div>
       </details>
 
       <Button variant="primary" className="w-full" disabled={!ready || busy} onClick={save}>
         Save targets
       </Button>
-      {saved && <p className="text-center text-sm text-emerald-700 dark:text-emerald-400">Saved.</p>}
+      {saved && <p className="text-center text-sm text-accent">Saved.</p>}
     </div>
   )
 }

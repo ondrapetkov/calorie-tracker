@@ -1,16 +1,15 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
 export const inputCls =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-700 dark:bg-slate-900'
+  'w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-base text-fg outline-none placeholder:text-muted/70 focus:border-accent focus:ring-2 focus:ring-accent/30'
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost'
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-emerald-600 text-white active:bg-emerald-700 disabled:bg-slate-400',
-  secondary:
-    'border border-slate-300 bg-white active:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:active:bg-slate-800',
-  danger: 'border border-red-300 text-red-600 active:bg-red-50 dark:border-red-900 dark:text-red-400 dark:active:bg-red-950',
-  ghost: 'text-emerald-700 active:bg-emerald-50 dark:text-emerald-400 dark:active:bg-slate-800',
+  primary: 'bg-accent font-semibold text-on-accent active:bg-accent-dim disabled:bg-line-strong disabled:text-muted',
+  secondary: 'border border-line-strong bg-surface text-fg active:bg-surface-2',
+  danger: 'border border-danger/50 text-danger active:bg-danger/10',
+  ghost: 'text-accent active:bg-surface-2',
 }
 
 export function Button({
@@ -30,7 +29,7 @@ export function Button({
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={`rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 ${className}`}
+      className={`rounded-xl border border-line bg-surface p-3 ${className}`}
     >
       {children}
     </div>
@@ -40,9 +39,9 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-600 dark:text-slate-400">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-muted">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-slate-500">{hint}</span>}
+      {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
     </label>
   )
 }
@@ -60,8 +59,8 @@ export function Sheet({
   children: ReactNode
 }) {
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-slate-50 dark:bg-slate-950">
-      <header className="flex items-center gap-2 border-b border-slate-200 px-2 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] dark:border-slate-800">
+    <div className="fixed inset-0 z-40 flex flex-col bg-bg">
+      <header className="flex items-center gap-2 border-b border-line px-2 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)]">
         <div className="w-20">
           {onBack && (
             <Button variant="ghost" className="whitespace-nowrap px-2 py-1.5" onClick={onBack}>

@@ -108,7 +108,7 @@ export function AddFoodFlow({ mode, onClose }: Props) {
         <div className="space-y-4">
           <div>
             <div className="text-lg font-semibold">{view.item.name}</div>
-            {view.item.brand && <div className="text-sm text-slate-500">{view.item.brand}</div>}
+            {view.item.brand && <div className="text-sm text-muted">{view.item.brand}</div>}
           </div>
           <AmountForm
             per100={{

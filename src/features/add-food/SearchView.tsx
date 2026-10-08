@@ -103,11 +103,11 @@ export function SearchView({ onPick, onPickMeal, onScan, onCustom }: Props) {
       </div>
 
       <section>
-        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
           {trimmed ? 'Your foods' : 'Recent'}
         </h3>
         {local.length === 0 ? (
-          <p className="py-2 text-sm text-slate-500">
+          <p className="py-2 text-sm text-muted">
             {trimmed ? 'No saved food matches.' : 'Foods you log will show up here.'}
           </p>
         ) : (
@@ -117,17 +117,17 @@ export function SearchView({ onPick, onPickMeal, onScan, onCustom }: Props) {
 
       {meals.length > 0 && (
         <section>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Your meals</h3>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Your meals</h3>
           {meals.map((m) => (
             <button
               key={m.meal.id}
               type="button"
               onClick={() => onPickMeal?.(m)}
-              className="flex w-full items-center gap-3 border-b border-slate-200 py-2.5 text-left last:border-0 active:bg-slate-100 dark:border-slate-800 dark:active:bg-slate-900"
+              className="flex w-full items-center gap-3 border-b border-line py-2.5 text-left last:border-0 active:bg-surface-2"
             >
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{m.meal.name}</div>
-                <div className="truncate text-xs text-slate-500">
+                <div className="truncate text-xs text-muted">
                   {formatNumber(m.perServing.kcal)} kcal · P {formatNumber(m.perServing.protein, 1)} · C{' '}
                   {formatNumber(m.perServing.carbs, 1)} · F {formatNumber(m.perServing.fat, 1)} per serving
                 </div>
@@ -139,7 +139,7 @@ export function SearchView({ onPick, onPickMeal, onScan, onCustom }: Props) {
 
       {basic.length > 0 && (
         <section>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
             Basic foods <span className="font-normal normal-case">(approximate reference values)</span>
           </h3>
           {basic.map((d) => (
@@ -151,16 +151,16 @@ export function SearchView({ onPick, onPickMeal, onScan, onCustom }: Props) {
       {trimmed.length >= 2 && (
         <section>
           <div className="mb-1 flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Open Food Facts</h3>
-            <label className="flex items-center gap-1.5 text-xs text-slate-500">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Open Food Facts</h3>
+            <label className="flex items-center gap-1.5 text-xs text-muted">
               <input type="checkbox" checked={czechOnly} onChange={(e) => toggleCzech(e.target.checked)} />
               Sold in CZ only
             </label>
           </div>
-          {remote.status === 'loading' && <p className="py-2 text-sm text-slate-500">Searching…</p>}
+          {remote.status === 'loading' && <p className="py-2 text-sm text-muted">Searching…</p>}
           {remote.status === 'error' && (
             <div className="py-2 text-sm">
-              <p className="text-red-600 dark:text-red-400">
+              <p className="text-danger">
                 Online search failed ({remote.message}). Open Food Facts is sometimes busy. Your saved, basic and custom
                 foods still work.
               </p>
@@ -170,7 +170,7 @@ export function SearchView({ onPick, onPickMeal, onScan, onCustom }: Props) {
             </div>
           )}
           {remote.status === 'ok' && drafts.length === 0 && (
-            <p className="py-2 text-sm text-slate-500">
+            <p className="py-2 text-sm text-muted">
               {remote.drafts.length === 0
                 ? 'Open Food Facts has no matching products.'
                 : 'Everything found is already in your saved foods.'}

@@ -87,15 +87,15 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
           </Field>
 
           <div>
-            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Ingredients</h3>
-            {rows.length === 0 && <p className="py-2 text-sm text-slate-500">No ingredients yet.</p>}
+            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Ingredients</h3>
+            {rows.length === 0 && <p className="py-2 text-sm text-muted">No ingredients yet.</p>}
             {parsedRows.map((r) => {
               const kcal = r.gramsN !== null && !Number.isNaN(r.gramsN) ? scaleMacros(r.food.per100, r.gramsN).kcal : 0
               return (
-                <div key={r.key} className="flex items-center gap-2 border-b border-slate-200 py-2 dark:border-slate-800">
+                <div key={r.key} className="flex items-center gap-2 border-b border-line py-2">
                   <div className="min-w-0 flex-1">
                     <div className="truncate">{r.food.name}</div>
-                    <div className="text-xs text-slate-500">{formatNumber(kcal)} kcal</div>
+                    <div className="text-xs text-muted">{formatNumber(kcal)} kcal</div>
                   </div>
                   <input
                     aria-label={`Amount of ${r.food.name}`}
@@ -107,11 +107,11 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
                     }
                     onFocus={(e) => e.target.select()}
                   />
-                  <span className="w-6 text-sm text-slate-500">{r.food.basis}</span>
+                  <span className="w-6 text-sm text-muted">{r.food.basis}</span>
                   <button
                     type="button"
                     aria-label={`Remove ${r.food.name}`}
-                    className="px-2 text-xl text-red-600 dark:text-red-400"
+                    className="px-2 text-xl text-danger"
                     onClick={() => setRows((all) => all.filter((x) => x.key !== r.key))}
                   >
                     ×
@@ -134,7 +134,7 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
             <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
 
-          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
           <Button variant="primary" className="w-full" disabled={busy} onClick={save}>
             Save meal
           </Button>

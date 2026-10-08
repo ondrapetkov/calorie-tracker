@@ -113,9 +113,9 @@ export function Scanner({ onDetected }: Props) {
       <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-black">
         <video ref={videoRef} playsInline muted className="h-full w-full object-cover" />
         {active ? (
-          <div className="absolute inset-x-[10%] inset-y-[35%] rounded-lg border-2 border-emerald-400" />
+          <div className="absolute inset-x-[10%] inset-y-[35%] rounded-lg border-2 border-accent" />
         ) : (
-          <div className="absolute inset-0 grid place-items-center text-sm text-slate-400">Camera off</div>
+          <div className="absolute inset-0 grid place-items-center text-sm text-muted">Camera off</div>
         )}
       </div>
       <canvas ref={canvasRef} hidden />
@@ -124,7 +124,7 @@ export function Scanner({ onDetected }: Props) {
           <button
             type="button"
             onClick={stop}
-            className="w-full rounded-lg border border-slate-300 px-4 py-2.5 font-medium dark:border-slate-700"
+            className="w-full rounded-lg border border-line-strong px-4 py-2.5 font-medium"
           >
             Stop camera
           </button>
@@ -132,15 +132,15 @@ export function Scanner({ onDetected }: Props) {
           <button
             type="button"
             onClick={start}
-            className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 font-medium text-white active:bg-emerald-700"
+            className="w-full rounded-lg bg-accent px-4 py-2.5 font-medium text-on-accent active:bg-accent-dim"
           >
             Start camera
           </button>
         )}
       </div>
-      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">Camera error: {error}</p>}
+      {error && <p className="mt-2 text-sm text-danger">Camera error: {error}</p>}
       {stats && active && (
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-muted">
           {stats.avgDecodeMs} ms/decode · {stats.framesPerSec} fps
         </p>
       )}

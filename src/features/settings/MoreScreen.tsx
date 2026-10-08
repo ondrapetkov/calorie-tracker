@@ -45,23 +45,23 @@ export function MoreScreen() {
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-4 pb-28 pt-[calc(env(safe-area-inset-top)+1rem)]">
+    <div className="mx-auto max-w-xl space-y-4 px-4 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)]">
       <h1 className="text-xl font-semibold">More</h1>
 
       <Card>
         <h2 className="font-semibold">Backup</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-muted">
           Everything is stored on this device. Export a JSON copy of all your data; cloud sync comes in a later milestone.
         </p>
         <Button className="mt-3 w-full" onClick={exportJson}>
           Export data
         </Button>
-        {message && <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-400">{message}</p>}
+        {message && <p className="mt-2 text-sm text-accent">{message}</p>}
       </Card>
 
       <Card>
         <h2 className="font-semibold">Storage</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-muted">
           {persisted === 'yes' && 'Persistent: the browser will not clear this data under storage pressure.'}
           {persisted === 'no' && 'Not persistent: the browser may clear this data if the device runs low on space.'}
           {persisted === 'unsupported' && 'This browser does not report storage persistence.'}
@@ -74,7 +74,7 @@ export function MoreScreen() {
         )}
       </Card>
 
-      <p className="text-center text-xs text-slate-500">Calorie Tracker · milestone 3</p>
+      <p className="text-center text-xs text-muted">Calorie Tracker · milestone 3</p>
     </div>
   )
 }

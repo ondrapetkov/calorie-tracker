@@ -24,13 +24,16 @@ const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
 export default function App() {
   const [tab, setTab] = useState<Tab>('diary')
   return (
-    <div className="min-h-full">
-      {tab === 'diary' && <DiaryScreen onOpenTargets={() => setTab('targets')} />}
-      {tab === 'meals' && <MealsScreen />}
-      {tab === 'targets' && <TargetsScreen />}
-      {tab === 'foods' && <FoodsScreen />}
-      {tab === 'more' && <MoreScreen />}
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] dark:border-slate-800 dark:bg-slate-900">
+    <>
+      {/* key resets the scroll position when switching tabs */}
+      <div key={tab} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-bg">
+        {tab === 'diary' && <DiaryScreen onOpenTargets={() => setTab('targets')} />}
+        {tab === 'meals' && <MealsScreen />}
+        {tab === 'foods' && <FoodsScreen />}
+        {tab === 'targets' && <TargetsScreen />}
+        {tab === 'more' && <MoreScreen />}
+      </div>
+      <nav className="shrink-0 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto flex max-w-xl">
           {TABS.map((t) => (
             <button
@@ -38,7 +41,7 @@ export default function App() {
               type="button"
               onClick={() => setTab(t.id)}
               className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs ${
-                tab === t.id ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'
+                tab === t.id ? 'text-accent' : 'text-muted'
               }`}
             >
               {t.icon}
@@ -47,6 +50,6 @@ export default function App() {
           ))}
         </div>
       </nav>
-    </div>
+    </>
   )
 }

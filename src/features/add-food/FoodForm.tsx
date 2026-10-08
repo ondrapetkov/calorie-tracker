@@ -93,7 +93,7 @@ export function FoodForm({ initial = {}, notice, submitLabel, onSubmit, onDelete
   return (
     <div className="space-y-4">
       {notice && (
-        <p className="rounded-lg bg-amber-100 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">{notice}</p>
+        <p className="rounded-lg bg-warn-bg p-3 text-sm text-warn">{notice}</p>
       )}
       <Field label="Name">
         <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />
@@ -137,7 +137,7 @@ export function FoodForm({ initial = {}, notice, submitLabel, onSubmit, onDelete
         </Field>
       </div>
 
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
       <Button variant="primary" className="w-full" disabled={busy} onClick={submit}>{submitLabel}</Button>
       {onDelete && <Button variant="danger" className="w-full" onClick={onDelete}>Delete food</Button>}
     </div>

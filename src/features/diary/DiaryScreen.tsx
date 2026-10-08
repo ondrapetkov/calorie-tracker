@@ -36,7 +36,7 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
   }, [toast])
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-4 pb-40 pt-[calc(env(safe-area-inset-top)+1rem)]">
+    <div className="mx-auto max-w-xl space-y-4 px-4 pb-28 pt-[calc(env(safe-area-inset-top)+1rem)]">
       <div className="flex items-center justify-between">
         <Button variant="ghost" className="px-3" onClick={() => setDate(addDays(date, -1))} aria-label="Previous day">
           ‹
@@ -50,7 +50,7 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
       </div>
 
       {loading ? (
-        <div className="h-48 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" aria-label="Loading" />
+        <div className="h-48 animate-pulse rounded-xl bg-surface-2" aria-label="Loading" />
       ) : (
         <DayTotals totals={totals} targets={targets} onSetupTargets={onOpenTargets} />
       )}
@@ -63,7 +63,7 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">{SLOT_LABELS[slot]}</h3>
               <div className="flex items-center gap-2">
-                {rows.length > 0 && <span className="text-sm text-slate-500">{formatNumber(kcal)} kcal</span>}
+                {rows.length > 0 && <span className="text-sm text-muted">{formatNumber(kcal)} kcal</span>}
                 <Button variant="ghost" className="px-2 py-1 text-sm" onClick={() => setAdding(slot)}>
                   + Add
                 </Button>
@@ -74,11 +74,11 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
                 key={e.id}
                 type="button"
                 onClick={() => setEditing(e)}
-                className="mt-2 flex w-full items-center gap-3 border-t border-slate-100 pt-2 text-left dark:border-slate-800"
+                className="mt-2 flex w-full items-center gap-3 border-t border-line pt-2 text-left"
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate">{e.label}</div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-muted">
                     {e.mealId !== null
                       ? `${formatNumber(e.servings ?? 1, 2).replace(/\.?0+$/, '')} × meal`
                       : `${formatNumber(e.grams ?? 0, 0)} ${e.unit}`}{' '}
@@ -97,18 +97,18 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
         type="button"
         aria-label="Add food"
         onClick={() => setAdding(defaultSlot(new Date().getHours()))}
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-4 z-20 h-14 w-14 rounded-full bg-emerald-600 text-3xl leading-none text-white shadow-lg active:bg-emerald-700"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-4 z-20 h-14 w-14 rounded-full bg-accent text-3xl leading-none text-on-accent shadow-lg active:bg-accent-dim"
       >
         +
       </button>
 
       {toast && (
-        <div className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+8rem)] z-30 mx-auto flex max-w-xl items-center justify-between rounded-lg bg-slate-800 px-4 py-3 text-sm text-white shadow-lg">
+        <div className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+8rem)] z-30 mx-auto flex max-w-xl items-center justify-between rounded-lg border border-line-strong bg-surface-2 px-4 py-3 text-sm text-fg shadow-lg">
           <span>{toast.message}</span>
           {toast.undo && (
             <button
               type="button"
-              className="font-semibold text-emerald-300"
+              className="font-semibold text-accent"
               onClick={() => {
                 toast.undo?.()
                 setToast(null)

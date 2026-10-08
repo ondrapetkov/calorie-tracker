@@ -14,6 +14,10 @@ Personal calorie and macro tracker, built as a React + TypeScript PWA. See [docs
 - **Basic foods are approximate:** the values in `src/data/genericFoods.ts` are reference values typed from general knowledge of standard tables (mainly USDA), not checked line by line against a database. Check anything you rely on heavily, and edit a saved food in the Foods tab to correct it.
 - Not yet built: weight and water tracking screens (weight can be entered on the Targets tab), cloud sync. See [docs/DESIGN.md](docs/DESIGN.md).
 
+## Look and feel
+
+Yellow on black with dark-grey surfaces, dark mode only. All colours are tokens in `src/index.css` (`@theme`), so changing the palette is a one-file edit. The app shell does not scroll the page: the screen area scrolls and the tab bar sits below it in normal flow, which keeps the bar anchored to the bottom on short screens on iOS.
+
 ## Develop
 
 ```bash

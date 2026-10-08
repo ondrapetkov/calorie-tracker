@@ -15,7 +15,7 @@ export function FoodsScreen() {
   const foods: Food[] = loadedFoods ?? []
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-4 pb-28 pt-[calc(env(safe-area-inset-top)+1rem)]">
+    <div className="mx-auto max-w-xl space-y-4 px-4 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)]">
       <h1 className="text-xl font-semibold">Foods</h1>
       <div className="flex gap-2">
         <input
@@ -28,7 +28,7 @@ export function FoodsScreen() {
         <Button onClick={() => setCreating(true)}>New</Button>
       </div>
       {loadedFoods === undefined ? null : foods.length === 0 ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           {trimmed ? 'No saved food matches.' : 'No saved foods yet. Foods are saved when you log them or create them here.'}
         </p>
       ) : (
@@ -52,7 +52,7 @@ export function FoodsScreen() {
       )}
       {editing && (
         <Sheet title="Edit food" onClose={() => setEditing(null)}>
-          <p className="mb-4 text-sm text-slate-500">
+          <p className="mb-4 text-sm text-muted">
             Past diary entries keep the values they were logged with; changes apply to future entries.
           </p>
           <FoodForm

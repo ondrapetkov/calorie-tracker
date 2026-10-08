@@ -55,9 +55,9 @@ export function ScanView({ onFound, onNotFound }: Props) {
     <div className="space-y-4">
       <Scanner onDetected={(code) => void resolve(code)} />
 
-      {status.kind === 'busy' && <p className="text-sm text-slate-500">Looking up {status.code}…</p>}
-      {status.kind === 'photo' && <p className="text-sm text-slate-500">Reading barcode from photo…</p>}
-      {status.kind === 'error' && <p className="text-sm text-red-600 dark:text-red-400">{status.message}</p>}
+      {status.kind === 'busy' && <p className="text-sm text-muted">Looking up {status.code}…</p>}
+      {status.kind === 'photo' && <p className="text-sm text-muted">Reading barcode from photo…</p>}
+      {status.kind === 'error' && <p className="text-sm text-danger">{status.message}</p>}
 
       <form onSubmit={submitManual} className="flex gap-2">
         <input
@@ -72,7 +72,7 @@ export function ScanView({ onFound, onNotFound }: Props) {
         </Button>
       </form>
 
-      <label className="block cursor-pointer rounded-lg border border-slate-300 px-4 py-2.5 text-center font-medium active:bg-slate-100 dark:border-slate-700 dark:active:bg-slate-800">
+      <label className="block cursor-pointer rounded-lg border border-line-strong px-4 py-2.5 text-center font-medium active:bg-surface-2">
         Scan from a photo or image
         <input type="file" accept="image/*" className="hidden" onChange={onPhoto} />
       </label>
