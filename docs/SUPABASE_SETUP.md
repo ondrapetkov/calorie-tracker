@@ -18,7 +18,7 @@ Dashboard wording changes from time to time. If a label is not exactly where thi
 
 1. In the left menu open **SQL Editor** and start a new query.
 2. Paste the whole contents of [`supabase-setup.sql`](supabase-setup.sql) and press **Run**.
-3. Expected result: "Success. No rows returned".
+3. Expected result: "Success. No rows returned". Already ran an earlier version of this file? Run [`supabase-hardening.sql`](supabase-hardening.sql) once instead.
 4. Open **Table Editor**, select `records`. It should show that **Row Level Security is enabled** and have no rows yet.
 
 What it creates: one table `records` for every synced row, a trigger that stamps each change with the server's clock, security rules so a signed-in user can only see and change their own rows (the public key alone can read and write nothing), and a function `push_records` that applies "newest edit wins".

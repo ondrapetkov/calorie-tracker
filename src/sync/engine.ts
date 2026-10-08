@@ -102,6 +102,19 @@ export function parseServerTime(iso: string): number {
   return Date.parse(iso.replace(/(\.\d{3})\d+/, '$1'))
 }
 
+/** Cheap shape check on a row from the server: an object payload, a string id and numeric times. */
+function isWellFormed(rec: RemoteRecord): boolean {
+  return (
+    typeof rec.id === 'string' &&
+    rec.id.length > 0 &&
+    typeof rec.data === 'object' &&
+    rec.data !== null &&
+    !Array.isArray(rec.data) &&
+    Number.isFinite(rec.updated_at) &&
+    (rec.deleted_at === null || Number.isFinite(rec.deleted_at))
+  )
+}
+
 /** Apply server rows locally: a row only replaces the local one when it is newer. */
 export async function applyRemote(db: AppDB, records: RemoteRecord[]): Promise<number> {
   const tables = entityTables(db)
@@ -110,6 +123,7 @@ export async function applyRemote(db: AppDB, records: RemoteRecord[]): Promise<n
     for (const rec of records) {
       const table = tables[rec.entity]
       if (!table) continue // an entity from a newer version of the app
+      if (!isWellFormed(rec)) continue // never store something the app cannot read
       const local = await table.get(rec.id)
       if (local && local.updatedAt >= rec.updated_at) continue
       await table.put({

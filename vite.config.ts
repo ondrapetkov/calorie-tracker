@@ -1,9 +1,21 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import tailwindcss from '@tailwindcss/vite'
 
+/** Parse public/_headers (the `/*` block) so `vite preview` serves the same security headers as production. */
+function securityHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {}
+  for (const line of readFileSync('public/_headers', 'utf8').split('\n')) {
+    const match = /^\s+([A-Za-z-]+):\s*(.+)$/.exec(line)
+    if (match) headers[match[1]] = match[2].trim()
+  }
+  return headers
+}
+
 export default defineConfig({
+  preview: { headers: securityHeaders() },
   plugins: [
     react(),
     tailwindcss(),

@@ -21,12 +21,16 @@ create index if not exists records_pull_idx on public.records (user_id, server_u
 create or replace function public.set_server_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   new.server_updated_at := now();
   return new;
 end;
 $$;
+
+-- Only the trigger needs this function; it must not be callable through the API.
+revoke execute on function public.set_server_updated_at() from public, anon, authenticated;
 
 drop trigger if exists records_set_server_updated_at on public.records;
 create trigger records_set_server_updated_at

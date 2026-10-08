@@ -246,6 +246,26 @@ describe('pulling', () => {
     expect(await getMeta<string>(a.db, 'cursor')).toBe(first)
   })
 
+  it('ignores rows that are not shaped like rows, instead of storing them', async () => {
+    const bad = (over: Partial<RemoteRecord>): RemoteRecord => ({
+      entity: 'food',
+      id: 'a',
+      data: { name: 'x' },
+      updated_at: 1,
+      deleted_at: null,
+      server_updated_at: '2026-10-08T10:00:00.000000+00:00',
+      ...over,
+    })
+    server.rows.set('1', bad({ id: '' }))
+    server.rows.set('2', bad({ id: 'b', data: null as never }))
+    server.rows.set('3', bad({ id: 'c', data: [] as never }))
+    server.rows.set('4', bad({ id: 'd', updated_at: 'soon' as never }))
+    server.rows.set('5', bad({ id: 'e', deleted_at: 'yes' as never }))
+    server.rows.set('6', bad({ id: 'f' })) // the one good row
+    expect(await pullChanges(a.db, server)).toBe(1)
+    expect(await a.db.foods.count()).toBe(1)
+  })
+
   it('skips entities it does not know instead of failing', async () => {
     server.rows.set('hologram/1', {
       entity: 'hologram',

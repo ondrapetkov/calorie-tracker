@@ -18,6 +18,10 @@ Personal calorie and macro tracker, built as a React + TypeScript PWA. See [docs
 - **Basic foods are approximate:** the values in `src/data/genericFoods.ts` are reference values typed from general knowledge of standard tables (mainly USDA), not checked line by line against a database. Check anything you rely on heavily, and edit a saved food in the Foods tab to correct it.
 - Not yet built: the adaptive calorie target. Two foods saved separately on two devices (for example the same barcode) stay as two entries. See [docs/DESIGN.md](docs/DESIGN.md).
 
+## Security
+
+See [docs/SECURITY.md](docs/SECURITY.md) for the review, what is and is not protected, and a short list of things to check in Supabase and Cloudflare. Security headers (including a strict Content Security Policy) live in `public/_headers`.
+
 ## Look and feel
 
 Yellow on black with dark-grey surfaces, dark mode only. All colours are tokens in `src/index.css` (`@theme`), so changing the palette is a one-file edit. The app shell is pinned to the screen (`position: fixed`): the screen area scrolls and the tab bar sits below it. The page itself is deliberately one pixel scrollable (`.scroll-spacer`), because on iOS home-screen apps a page that cannot scroll gets a viewport shorter than the screen by the status-bar height, which left a gap under the tab bar. `src/platform/viewport.ts` adds a narrow fallback for that case.
