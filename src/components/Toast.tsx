@@ -22,7 +22,7 @@ export function useToast(options: { raised?: boolean } = {}): [(message: string,
 
   const node = toast ? (
     <div
-      className={`fixed inset-x-4 z-30 mx-auto flex max-w-xl items-center justify-between rounded-lg border border-line-strong bg-surface-2 px-4 py-3 text-sm text-fg shadow-lg ${
+      className={`fixed inset-x-4 z-30 !my-0 mx-auto flex max-w-xl items-center justify-between rounded-lg border border-line-strong bg-surface-2 px-4 py-3 text-sm text-fg shadow-lg ${
         options.raised ? 'bottom-[calc(env(safe-area-inset-bottom)+8rem)]' : 'bottom-[calc(env(safe-area-inset-bottom)+4.75rem)]'
       }`}
       role="status"

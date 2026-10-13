@@ -1,6 +1,6 @@
 # Security review
 
-Reviewed 8 October 2026 (milestone 5). Scope: the app code, its dependencies, the Supabase schema and the deployment headers. A single-user app that stores personal health data on the device and in a private Supabase project.
+Reviewed 8 October 2026 (milestone 5), updated 13 October 2026 for publishing the repository. Scope: the app code, its dependencies, the Supabase schema and the deployment headers. A single-user app that stores personal health data on the device and in a private Supabase project.
 
 ## What is protected, and from whom
 
@@ -20,7 +20,7 @@ Reviewed 8 October 2026 (milestone 5). Scope: the app code, its dependencies, th
 4. **`.env` files were not git-ignored.** They are now, so a key could not be committed by accident.
 
 ### Checked and fine
-- **Secrets.** No secret, service_role or private key in the code or in any commit. The only key in the repo is the Supabase publishable key, which is public by design. The repository is private.
+- **Secrets.** No secret, service_role or private key in the code or in any commit. Commits are authored as Claude (no personal email). Since the repository became public, the Supabase URL and publishable key are no longer in the code: they come from build-time environment variables (`.env.local`, or the hosting's settings), and the Content Security Policy is filled in from them. Both are public by design anyway (they ship in the app's JavaScript); keeping them out of the repo means forks never point at the owner's project. Older commits still contain them, which is harmless for the same reason.
 - **Row level security.** Tested on PostgreSQL 16 with stand-ins for Supabase's auth: a second user sees nothing of yours, cannot update or delete it and cannot write rows as you; the logged-out role can neither read nor write; `push_records` runs with the caller's rights (`security invoker`) and cannot overwrite a newer row.
 - **Injection and XSS.** No `innerHTML`, `dangerouslySetInnerHTML`, `eval`, `new Function`, `document.write` or dynamic script loading anywhere. Everything from Open Food Facts and from the server is rendered as text by React. Search text and barcodes are URL-encoded.
 - **Dependencies.** `npm audit`: 0 known vulnerabilities. Versions are pinned by the lockfile.
@@ -40,8 +40,8 @@ Reviewed 8 October 2026 (milestone 5). Scope: the app code, its dependencies, th
 1. **Supabase: sign-ups are closed** (Authentication, Sign In / Providers, "Allow new users to sign up" off). Security does not depend on it (row level security still protects the data), but it keeps strangers from creating accounts.
 2. **Supabase: run `docs/supabase-hardening.sql`** in the SQL Editor once, and open **Table Editor, records** to confirm Row Level Security is enabled. If the dashboard has a Security Advisor, it should list no warnings for `records`.
 3. **Use a long, unique password** for the Supabase login (a password manager). It is the main thing standing between the internet and your data. Supabase rate-limits sign-in attempts.
-4. **Cloudflare: confirm the headers arrive.** After deploying, `curl -I https://<your-site>.pages.dev` should show `content-security-policy` and `strict-transport-security`. If not, the `_headers` file was not published.
-5. **Keep the GitHub repository private** (it contains your Supabase project address and some body measurements in the docs and tests).
+4. **Cloudflare: confirm the headers arrive.** After deploying, `curl -I https://<your-site>.pages.dev` should show `content-security-policy` (with your Supabase origin in `connect-src`) and `strict-transport-security`. If not, the `_headers` file was not published or the environment variables were missing at build time.
+5. **Before making the repository public**, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the hosting (Cloudflare Pages) and redeploy, and keep sign-ups closed in Supabase. On a public repository, also turn on GitHub's free secret scanning and push protection (Settings, Code security).
 6. **Never put the Supabase secret / service_role key in the app or the repository.**
 
 ## Keeping it secure

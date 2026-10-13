@@ -187,8 +187,8 @@ describe('meals', () => {
 describe('profile and weight', () => {
   const profile = {
     sex: 'male' as const,
-    birthDate: '2004-03-15',
-    heightCm: 181,
+    birthDate: '1996-05-20',
+    heightCm: 180,
     activityFactor: 1.55,
     goal: 'cut' as const,
     calorieOffset: -400,
@@ -263,8 +263,8 @@ describe('water', () => {
     expect(await repo.saveWaterSettings({ goalMl: 3000, presets: [{ label: 'Cup', ml: 300 }] })).toBe(false)
     await repo.saveProfile({
       sex: 'male',
-      birthDate: '2004-03-15',
-      heightCm: 181,
+      birthDate: '1996-05-20',
+      heightCm: 180,
       activityFactor: 1.55,
       goal: 'cut',
       calorieOffset: -400,

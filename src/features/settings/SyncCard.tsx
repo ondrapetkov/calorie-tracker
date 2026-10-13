@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button, Card, Field, inputCls } from '../../components/ui'
 import { timeAgo } from '../../domain/time'
 import { getSyncManager, useSyncStatus } from '../../sync'
+import { SYNC_CONFIGURED } from '../../sync/config'
 import type { SyncStatus } from '../../sync/manager'
 
 function statusLine(s: SyncStatus, now: number): string {
@@ -12,6 +13,21 @@ function statusLine(s: SyncStatus, now: number): string {
 }
 
 export function SyncCard() {
+  if (!SYNC_CONFIGURED) {
+    return (
+      <Card>
+        <h2 className="font-semibold">Sync</h2>
+        <p className="mt-1 text-sm text-muted">
+          Sync is not set up for this build, so everything stays on this device. To sync between devices, create a free
+          Supabase project and build with VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY (see docs/SUPABASE_SETUP.md).
+        </p>
+      </Card>
+    )
+  }
+  return <SyncCardConfigured />
+}
+
+function SyncCardConfigured() {
   const status = useSyncStatus()
   const manager = getSyncManager()
   const [email, setEmail] = useState('')

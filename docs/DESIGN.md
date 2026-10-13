@@ -147,7 +147,7 @@ fat g     = fatPerKg * weightKg
 carbs g   = (kcal - 4*protein - 9*fat) / 4
 ```
 
-Weight comes from the latest `weight_entry`. For the initial profile (male, 22, 181 cm, 87 kg, factor 1.55) this gives about 2,940 kcal at maintenance and about 2,540 kcal at -400, with protein about 174 g. The female formula uses -161 instead of +5.
+Weight comes from the latest `weight_entry`. Worked example (male, 30 years, 180 cm, 80 kg, factor 1.55): BMR 1,780 kcal, about 2,760 kcal at maintenance and about 2,360 kcal at -400, with 160 g protein, 72 g fat and 268 g carbs. The female formula uses -161 instead of +5.
 
 These are estimates, typically within about ±10%. The UI presents them as editable starting points, not medical advice.
 

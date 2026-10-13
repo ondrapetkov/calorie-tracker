@@ -44,7 +44,7 @@ This is a second lock, not the only one: even with sign-ups open, the row-level 
    - **Publishable key** (starts with `sb_publishable_`). If your project only shows the older **anon** key, that one works too. If there is a "Create new API keys" button, you can use it to get a publishable key.
 3. **Never** copy or share the **secret** key (`sb_secret_...`) or the legacy **service_role** key. They bypass all security.
 
-The URL and publishable key are designed to be public: they end up inside the app, and the security rules above are what protect the data. It is safe to paste them to Claude.
+The URL and publishable key are designed to be public: they end up inside the app's JavaScript, and the security rules above are what protect the data. They are still kept out of the repository (step 7), so a fork of this project never talks to your Supabase project.
 
 Do not share: the database password, the secret / service_role key, or your login password.
 
@@ -55,6 +55,19 @@ Do not share: the database password, the secret / service_role key, or your logi
 - Free organizations are limited to two active projects.
 - Limits change; check <https://supabase.com/pricing> before relying on a number.
 
-## 7. In the app
+## 7. Give the values to the build
 
-The project URL and publishable key are set in `src/sync/config.ts` (they can be overridden at build time with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`). In the app open **More**, sign in with the email and password from step 3, and sync starts. The same login works on every device.
+The app reads the two values at build time from environment variables. Without them it builds a local-only app (everything works except sync).
+
+- **Local development:** copy `.env.example` to `.env.local` (git-ignored) and fill in:
+  ```
+  VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+  ```
+- **Cloudflare Pages:** open the project, then **Settings**, **Variables and Secrets**, and add the same two variables for **Production** (and Preview if you use preview deployments). Trigger a new deployment afterwards; the values are baked in at build time.
+
+The build also adds the project's origin to the Content Security Policy in `_headers`, so the browser allows exactly that one Supabase project.
+
+## 8. In the app
+
+Open **More**, sign in with the email and password from step 3, and sync starts. The same login works on every device.

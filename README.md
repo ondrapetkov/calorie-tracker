@@ -1,71 +1,161 @@
 # Calorie Tracker
 
-Personal calorie and macro tracker, built as a React + TypeScript PWA. See [docs/DESIGN.md](docs/DESIGN.md) for the full design.
+A mobile-first, offline-first calorie and macro tracker, built as an installable web app (PWA) for iPhone and desktop. It logs food from a search, a barcode scan or saved meals, tracks weight and water, computes daily targets, shows weekly to yearly statistics, and syncs between devices through Supabase.
 
-## Current state: Milestone 6, calendar and statistics
+This is my first project built with [Claude Code](https://claude.com/claude-code): I used it to practise AI-assisted development end to end, from the first brainstorm to a deployed app I use every day.
 
-- **Calendar:** tap the date at the top of the Diary to open a month calendar (weeks start on Monday). Days with diary entries carry a dot. Pick any day, jump months or years with the arrows, or press Today. A "Back to today" link shows while you look at another day.
-- **Statistics (More tab, Open statistics):** weekly, monthly and yearly calorie statistics with a previous/next period control. Shows the average calories per logged day (days you did not log are not counted as zero), days logged, total calories, the difference to your daily target, average protein, carbs and fat with their share of macro calories, a bar chart (calories per day for a week or month, average per logged day for each month of a year) with your target as a line, and a list with the exact numbers. Tap a bar, or use the arrow keys, to read it. Comparisons use your current target.
-- **Sync (More tab):** sign in with your email and password and your data syncs through Supabase, so the phone and a desktop browser share one diary. The app always works from its local database first, so it stays fully usable offline: changes are saved on the device and upload automatically a couple of seconds after you make them, when you come back online, and when you reopen the app. Sync now forces a round. If two devices edit the same thing, the newest edit wins. A weight logged twice for one day, or two profiles created before the first sync, are merged to one. Signing out keeps the data on the device and stops syncing. Set-up steps: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
-- **Body tab:** three sections.
-  - **Weight:** log a weight for any day (one per day; logging a day again replaces it). Shows the latest weight, the 7-day average and its change over 7 and 30 days, a chart with weigh-ins as dots and the 7-day average as a line (tap or use the arrow keys to read a point, 30 days / 90 days / All), weekly averages (Monday to Sunday) and a history you can correct or delete (with Undo).
-  - **Water:** one-tap buttons for your containers (Shaker 250 ml, Sport bottle 900 ml, Stanley 1,100 ml by default), a custom amount, the day's entries, and the last 7 days against your goal. Goal and buttons are editable once your targets are set up (they are stored with your profile). The diary also has a compact water card.
-  - **Targets:** enter sex, date of birth, height, weight, activity level and goal (cutting, maintenance or bulking). The app estimates daily calories with Mifflin-St Jeor, sets protein (2 g/kg) and fat (0.9 g/kg), and gives the rest to carbs. Calorie adjustment and the per-kg values can be fine-tuned. These are estimates, not medical advice.
-- **Meals:** build a recipe from ingredients (any food, in grams), say how many servings it makes, and log portions of it in one tap, from the Meals tab or from + Add in the diary. Logging a meal records one diary entry with its macros at that time; later edits to the recipe or its ingredients do not change past days.
-- **Diary:** pick a day, see calories, protein, carbs, fat, fiber, sugar and salt against your targets (progress bars, calories left or over), grouped by breakfast, lunch, dinner and snacks. Tap an entry to change its amount or meal; deleting offers Undo.
-- **Add food:** search your saved foods first, then bundled **basic foods** (about 100 everyday ingredients with Czech names: meat, fish, eggs, dairy, grains, vegetables, fruit, nuts), then Open Food Facts for packaged products. Scan a barcode, type the digits, or scan from a photo. Amounts in grams, millilitres or servings, with live macros.
-- **Custom foods:** products missing from Open Food Facts, or missing values, are completed once and found instantly next time. A **Foods** tab lets you create, edit or delete saved foods. In the food form, **Scan** next to the barcode reads a barcode with the camera (or a typed number or photo), looks the product up and fills in the blank fields, including its portion size and name (for example "1 slice, 20 g"). Whatever you have already typed is never overwritten, and you can change the portion before saving. If the barcode is already saved, the form warns that saving would add a second entry.
-- **Offline-first:** everything is stored in IndexedDB (Dexie). The app shell and barcode decoder are cached, so the diary, saved foods and custom foods work offline. Online search and barcode lookup need a connection.
-- **Backup:** More, then Export data, saves all tables as JSON.
-- **Basic foods are approximate:** the values in `src/data/genericFoods.ts` are reference values typed from general knowledge of standard tables (mainly USDA), not checked line by line against a database. Check anything you rely on heavily, and edit a saved food in the Foods tab to correct it.
-- Not yet built: the adaptive calorie target. Two foods saved separately on two devices (for example the same barcode) stay as two entries. See [docs/DESIGN.md](docs/DESIGN.md).
+<p align="center">
+  <img src="docs/screenshots/diary.png" alt="Diary with daily totals, macro progress and water" width="200">
+  <img src="docs/screenshots/add-food.png" alt="Adding a food by servings with live macros" width="200">
+  <img src="docs/screenshots/statistics.png" alt="Weekly statistics with a bar chart against the daily target" width="200">
+  <img src="docs/screenshots/weight.png" alt="Weight chart with a 7-day average and weekly averages" width="200">
+</p>
 
-## Security
+<p align="center"><sub>Screenshots use demo data.</sub></p>
 
-See [docs/SECURITY.md](docs/SECURITY.md) for the review, what is and is not protected, and a short list of things to check in Supabase and Cloudflare. Security headers (including a strict Content Security Policy) live in `public/_headers`.
+## Features
 
-## Look and feel
+**Logging**
+- Diary by day, grouped into breakfast, lunch, dinner and snacks, with calories, protein, carbs, fat, fiber, sugar and salt against daily targets.
+- Food search that checks your saved foods first, then over 90 bundled everyday foods with Czech names (diacritics and Czech word endings are tolerated, so "kureci prsa" finds "Kuřecí prsa"), then [Open Food Facts](https://world.openfoodfacts.org) for packaged products.
+- Barcode scanning with the camera, from a photo, or by typing the digits. Decoding runs in the browser (WebAssembly), so it works offline.
+- Amounts in grams, millilitres or named portions such as "1 slice (20 g)". Scanning a barcode in the food form fills in the blank fields, including the portion size, without overwriting anything you typed.
+- Saved meals (recipes) built from ingredients, logged by the serving. Each diary entry stores a snapshot of its nutrition, so editing a food or recipe later never rewrites past days.
+- Month calendar to jump to any day, with a marker on days that have entries.
 
-Yellow on black with dark-grey surfaces, dark mode only. All colours are tokens in `src/index.css` (`@theme`), so changing the palette is a one-file edit. The app shell is pinned to the screen (`position: fixed`): the screen area scrolls and the tab bar sits below it. The page itself is deliberately one pixel scrollable (`.scroll-spacer`), because on iOS home-screen apps a page that cannot scroll gets a viewport shorter than the screen by the status-bar height, which left a gap under the tab bar. `src/platform/viewport.ts` adds a narrow fallback for that case.
+**Body and goals**
+- Daily targets from the Mifflin-St Jeor formula, activity level and goal (cutting, maintenance, bulking), with a slider for the calorie adjustment and adjustable protein and fat per kilogram.
+- Weight log with a 7-day moving average chart, weekly (Monday to Sunday) averages and trend changes.
+- Water tracking with one-tap buttons for your own containers.
 
-## Develop
+**Statistics**
+- Week, month and year views: average calories per logged day, days logged, totals, difference to target, average macros and their split, and a bar chart with the target line. Days you did not log count as unknown, not as zero.
+
+**Data**
+- Offline-first: everything is stored on the device in IndexedDB, and the app shell is cached by a service worker, so it opens and works without a connection.
+- Optional sync between devices (phone and desktop) through Supabase, with email and password sign-in.
+- JSON export of all data as a backup that does not depend on any online service.
+
+## Tech stack
+
+| Area | Choice |
+|---|---|
+| Language | TypeScript (strict) |
+| UI | React 19, Tailwind CSS 4, small hand-written components |
+| Build | Vite 8, `vite-plugin-pwa` (Workbox service worker, web app manifest) |
+| Local database | IndexedDB through Dexie 4 and `dexie-react-hooks` (live queries) |
+| Sync backend | Supabase (Postgres, Auth, row level security) via `@supabase/supabase-js` |
+| Barcode decoding | `zxing-wasm` (ZXing-C++ compiled to WebAssembly) |
+| Food data | Open Food Facts API, plus a bundled list of basic foods |
+| Charts | Hand-written SVG (no chart library) |
+| Tests | Vitest and `fake-indexeddb` |
+| Hosting | Cloudflare Pages (static), security headers via `_headers` |
+
+## Architecture
+
+```mermaid
+flowchart LR
+  UI["React screens<br/>(features/*)"] -->|live queries| DB[("IndexedDB<br/>Dexie")]
+  UI --> Domain["Domain logic<br/>(pure functions)"]
+  UI --> OFF["Open Food Facts API"]
+  DB <-->|dirty rows / changes| Sync["Sync engine"]
+  Sync <-->|"push_records RPC<br/>pull by server time"| SB[("Supabase<br/>Postgres + RLS")]
+```
+
+- **Local-first.** Screens only read and write the local database. The network is used for food lookups and background sync, never to render a screen.
+- **Pure domain layer.** Nutrition maths, targets, weight trends, statistics and calendar logic are plain functions with unit tests and no UI or database imports.
+- **Sync.** Every row carries a UUID, an `updatedAt` time, a soft-delete marker and a local "dirty" flag. Changed rows are pushed through a Postgres function that keeps the newer edit; changes are pulled by the server's clock with a small overlap, so a device with a wrong clock cannot hide its changes. A deterministic merge keeps one profile and one weight per day when two devices create them before their first sync. One generic `records` table holds every entity, so the app can evolve its data model without server migrations. Full design: [docs/DESIGN.md](docs/DESIGN.md).
+
+## Project structure
+
+```
+src/
+  api/          Open Food Facts client (search, barcode lookup, parsing)
+  components/   Shared UI (buttons, sheets, segmented control, toast)
+  data/         Bundled basic foods and their search
+  db/           Dexie schema and repository functions
+  domain/       Pure logic: nutrition, targets, meals, weight, statistics, calendar, dates
+  features/     Screens: diary, add-food, meals, foods, body (weight, water), targets, stats, settings
+  platform/     iOS home-screen viewport fix
+  sync/         Sync engine, sync manager, Supabase adapter and configuration
+docs/           Design, security review, Supabase setup and SQL, screenshots
+public/         Icons and security headers
+```
+
+## Getting started
+
+Requirements: Node.js 22.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173, also reachable on your LAN
-npm run build      # type-check + production build into dist/
-npm run preview    # serve the production build locally
-npm test           # unit tests (domain logic, parsing, database layer)
+npm run dev        # development server on http://localhost:5173
+npm test           # unit tests
+npm run build      # type-check and production build into dist/
+npm run preview    # serve the production build, with the production security headers
 ```
 
-Camera access needs HTTPS or `localhost`, so testing on a phone means deploying (below) rather than opening the LAN dev URL.
+The app works without any configuration as a local-only tracker. To enable sync, create a free Supabase project and follow [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md), then copy `.env.example` to `.env.local` and fill in:
 
-## Deploy to Cloudflare Pages
+```
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+```
 
-1. Push this repo to GitHub (already done for this branch).
-2. In the Cloudflare dashboard go to Workers & Pages, create an application, choose Pages and connect to Git, and select this repository. The dashboard layout changes from time to time, so follow its current wording.
-3. Settings:
-   - Production branch: the branch you want to deploy (for now `claude/calorie-tracker-brainstorm-1fxuwf`, later `main`)
-   - Build command: `npm run build`
-   - Build output directory: `dist`
-   - Node version: taken from `.node-version` (22)
-4. Open the resulting `https://<project>.pages.dev` URL on the iPhone in Safari.
+Camera access needs HTTPS (or `localhost`), so barcode scanning on a phone needs a deployed build.
 
-Alternative without Git integration: `npm run build && npx wrangler pages deploy dist`.
+## Deployment
 
-## Trying the latest version on the iPhone
+The app is a static site. On Cloudflare Pages:
 
-Redeploy by pushing to the branch Cloudflare builds from, then reopen the app from the Home Screen (the service worker updates itself; close and reopen once if you still see the old version).
+1. Connect the repository, with build command `npm run build` and output directory `dist` (Node 22 is picked up from `.node-version`).
+2. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` under **Settings, Variables and Secrets** if you want sync.
+3. Open the site in Safari on an iPhone and use **Share, Add to Home Screen** to install it as an app. On desktop, Chrome and Edge offer an install button in the address bar.
 
-1. Search a food you eat ("ovesné vločky") and log it. Check the Open Food Facts results and whether the macros look right.
-2. Scan a product, log it with servings, and check its fiber, sugar and salt.
-3. Create a custom food for something Open Food Facts lacks, and log it again from search.
-4. Edit an entry's amount, delete one and use Undo, then flip between days.
-5. In airplane mode, log a saved food. Then close and reopen the app and confirm the data is still there.
-6. More, Export data: check that the share sheet or a file download works on iOS.
-7. Targets tab: enter your details and check the numbers against what you expect (about 2,540 kcal, 174 g protein for 87 kg, cutting).
-8. Meals tab: build a meal you eat, log one serving from the Meals tab and another from + Add, then change the servings of a logged entry.
-9. Body, Water: tap your three container buttons, remove one entry, change the goal or a button in Water settings.
-10. More, Sync: sign in, watch it say Up to date, then log something on the phone and open the app in a desktop browser (same URL, sign in there) to see it arrive. Also try airplane mode: log a food, see "1 change waiting to upload", turn it off and watch it catch up.
-11. Diary: tap the date, pick another day, then open More, Statistics for the week, month and year.
-12. Body, Weight: log today's weight and a few past days, read points on the chart by touch, correct one from History.
+## Testing
+
+- **231 unit tests** (Vitest) cover the domain logic, Open Food Facts parsing and retries, the database layer, and the sync engine. Sync is tested with two simulated devices against a fake server that applies the same rules as the SQL: edits and deletes travelling both ways, conflicting edits, paging, cursor handling, failures and merges.
+- The Supabase schema and its row level security were tested on a local PostgreSQL 16 with stand-ins for Supabase's auth functions.
+- During development every feature was also checked end to end in headless Chromium with Playwright, at phone size and under the production Content Security Policy, including a fake camera feed for barcode scanning and a mocked Supabase for sync. Those scripts were run ad hoc and are not part of the repository.
+
+## Security and privacy
+
+- Strict Content Security Policy and other security headers (`public/_headers`): scripts only from the app itself, no inline scripts or `eval`, network access only to the app, the configured Supabase project and Open Food Facts.
+- Row level security in Supabase: a signed-in user can only read and write their own rows, and the public key alone can do nothing. Public sign-ups are meant to be disabled.
+- No secrets in the repository. The Supabase URL and publishable key are public by design but still supplied at build time, so forks never point at someone else's project.
+
+Details, accepted risks and the owner's checklist: [docs/SECURITY.md](docs/SECURITY.md).
+
+## How it was built with Claude Code
+
+The whole project was developed in conversation with Claude Code, working in milestones:
+
+1. **Brainstorm and decisions.** Requirements, feasibility, and the main choices: a PWA instead of Flutter or a native app (free, no Mac or Apple developer account needed), Supabase for free sync, Open Food Facts for food data.
+2. **Design document** with the data model, sync protocol and milestones, reviewed before any code ([docs/DESIGN.md](docs/DESIGN.md)).
+3. **Scanner spike** to prove the riskiest part, barcode scanning in iOS Safari, on a real phone first.
+4. **Core log, meals and targets, weight and water, sync, calendar and statistics**, each followed by testing on the iPhone and feedback in plain language: inconsistent search results, a missing photo-scan option, a theme change to yellow and black, layout tweaks.
+5. **A security review** before going live, which added the Content Security Policy and hardened the database functions.
+
+My part was the product: setting requirements, making the decisions, testing every build on the phone and reporting what was wrong. Claude Code wrote the code, the tests and the documentation, and verified each change before pushing.
+
+One example of the debugging loop: the tab bar jumped on short screens only in the installed iPhone app, which could not be reproduced in a desktop browser. Claude Code added an on-device diagnostics panel; a single screenshot of it showed the viewport was 59 points shorter than the screen, exactly the status-bar height, whenever a page could not scroll. That pinned down an iOS quirk, and the fix was verified on the phone.
+
+## Limitations and ideas
+
+- The bundled basic foods are approximate reference values, not checked line by line against a food composition database.
+- Foods saved separately on two devices (for example the same barcode) stay as two entries after syncing.
+- Statistics compare against the current calorie target, since past targets are not stored.
+- Not built yet: an adaptive calorie target based on the weight trend and logged intake.
+
+## Data sources
+
+- Packaged-food data from [Open Food Facts](https://world.openfoodfacts.org), available under the [Open Database License](https://opendatacommons.org/licenses/odbl/1-0/).
+- The bundled basic foods use approximate reference values in line with standard food composition tables such as [USDA FoodData Central](https://fdc.nal.usda.gov) (public domain).
+
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [docs/DESIGN.md](docs/DESIGN.md) | Goals, architecture, data model, sync protocol, screens, milestones |
+| [docs/SECURITY.md](docs/SECURITY.md) | Security review, accepted risks, checks for the owner |
+| [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) | Setting up the free Supabase project for sync |
+| [docs/supabase-setup.sql](docs/supabase-setup.sql) | Database schema, row level security and sync function |

@@ -140,12 +140,17 @@ export function StatsChart({ kind, buckets, target }: Props) {
         {target !== null && (
           <g>
             <line x1={M.left} x2={W - M.right} y1={model.y(target)} y2={model.y(target)} stroke="var(--color-fg)" strokeWidth="1" strokeOpacity="0.55" vectorEffect="non-scaling-stroke" />
-            <text x={W - M.right} y={model.y(target) - 4} textAnchor="end" fontSize="10" fill="var(--color-muted)">
-              target {formatNumber(target)}
-            </text>
           </g>
         )}
       </svg>
+      {target !== null && (
+        <div className="mt-1 flex items-center gap-1.5 text-xs text-muted">
+          <svg width="16" height="10" aria-hidden="true">
+            <line x1="0" y1="5" x2="16" y2="5" stroke="var(--color-fg)" strokeOpacity="0.55" strokeWidth="1" />
+          </svg>
+          Daily target {formatNumber(target)} kcal
+        </div>
+      )}
       <p className="mt-1 text-xs text-muted">
         {kind === 'year' ? 'Average calories per logged day, by month.' : 'Calories per day.'} Tap a bar for details.
       </p>

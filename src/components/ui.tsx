@@ -59,7 +59,7 @@ export function Sheet({
   children: ReactNode
 }) {
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-bg">
+    <div className="fixed inset-0 z-40 !m-0 flex flex-col bg-bg">
       <header className="flex items-center gap-2 border-b border-line px-2 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)]">
         <div className="w-20">
           {onBack && (

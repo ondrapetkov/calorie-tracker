@@ -67,8 +67,8 @@ const oats: FoodInput = {
 
 const profile = {
   sex: 'male' as const,
-  birthDate: '2004-03-15',
-  heightCm: 181,
+  birthDate: '1996-05-20',
+  heightCm: 180,
   activityFactor: 1.55,
   goal: 'cut' as const,
   calorieOffset: -400,

@@ -5,10 +5,11 @@ import App from './App'
 import './index.css'
 import { installViewportFix } from './platform/viewport'
 import { getSyncManager } from './sync'
+import { SYNC_CONFIGURED } from './sync/config'
 
 registerSW({ immediate: true })
 installViewportFix()
-void getSyncManager().start()
+if (SYNC_CONFIGURED) void getSyncManager().start()
 
 // Ask the browser not to evict our data under storage pressure. Safe to call repeatedly.
 void navigator.storage?.persist?.()

@@ -2,6 +2,7 @@
   "name": "calorie-tracker",
   "private": true,
   "version": "0.0.0",
+  "description": "Offline-first calorie and macro tracker PWA with barcode scanning, statistics and Supabase sync",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
