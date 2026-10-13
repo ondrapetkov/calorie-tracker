@@ -151,6 +151,10 @@ One example of the debugging loop: the tab bar jumped on short screens only in t
 - Packaged-food data from [Open Food Facts](https://world.openfoodfacts.org), available under the [Open Database License](https://opendatacommons.org/licenses/odbl/1-0/).
 - The bundled basic foods use approximate reference values in line with standard food composition tables such as [USDA FoodData Central](https://fdc.nal.usda.gov) (public domain).
 
+## License
+
+The code is released under the [MIT License](LICENSE). Food data from Open Food Facts remains under the Open Database License (see Data sources).
+
 ## Documentation
 
 | Document | Contents |
