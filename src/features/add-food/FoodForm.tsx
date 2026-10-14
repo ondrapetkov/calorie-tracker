@@ -8,6 +8,8 @@ import { formatNumber, parseNumber } from '../../domain/numbers'
 import { describeFilled, fillEmptyFields, toFormValues, type FormValues } from './formValues'
 import { isFood } from './draft'
 import { ScanView } from './ScanView'
+import { PasteView } from './PasteView'
+import type { ParsedNutrition } from '../../domain/nutritionText'
 
 interface Props {
   initial?: Partial<FoodDraft>
@@ -24,6 +26,7 @@ export function FoodForm({ initial = {}, notice, submitLabel, onSubmit, onDelete
   const [busy, setBusy] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [scanNote, setScanNote] = useState<string | null>(null)
+  const [pasting, setPasting] = useState(false)
 
   const set = <K extends keyof FormValues>(key: K) => (value: FormValues[K]) => setV((prev) => ({ ...prev, [key]: value }))
 
@@ -48,6 +51,33 @@ export function FoodForm({ initial = {}, notice, submitLabel, onSubmit, onDelete
     else parts.push('Barcode saved in the form. This product is not in Open Food Facts, so enter its values yourself.')
     setScanNote(parts.join(' '))
     setScanning(false)
+  }
+
+  /** Nutrition text was pasted (e.g. from kaloricketabulky.cz). Fill what is blank, like a scan. */
+  const applyPaste = (parsed: ParsedNutrition) => {
+    const p = parsed.values
+    const { values, filled } = fillEmptyFields(v, {
+      name: parsed.name ?? undefined,
+      brand: parsed.brand,
+      basis: parsed.basis,
+      per100: {
+        kcal: p.kcal ?? null,
+        protein: p.protein ?? null,
+        carbs: p.carbs ?? null,
+        fat: p.fat ?? null,
+        fiber: p.fiber ?? null,
+        sugar: p.sugar ?? null,
+        salt: p.salt ?? null,
+      },
+    })
+    setV(values)
+    const what = describeFilled(filled)
+    setScanNote(
+      what
+        ? `Filled in from the pasted text: ${what}. Values are per 100 ${values.basis}; check them and set your own portion size.`
+        : 'Read the pasted text, but every field it could fill is already filled.',
+    )
+    setPasting(false)
   }
 
   const submit = async () => {
@@ -123,9 +153,12 @@ export function FoodForm({ initial = {}, notice, submitLabel, onSubmit, onDelete
             </Button>
           </div>
         </Field>
+        <Button className="mt-2 w-full text-sm" onClick={() => setPasting(true)}>
+          Fill in from copied text
+        </Button>
         <p className="mt-1 text-xs text-muted">
-          Scanning looks the product up and fills in the blank fields, including its portion size. Your own entries are
-          never overwritten.
+          Scanning looks the product up; pasted text from kaloricketabulky.cz or a label is read on the device. Both fill
+          in the blank fields only, so your own entries are never overwritten.
         </p>
         {scanNote && <p className="mt-2 rounded-lg bg-surface-2 p-3 text-sm">{scanNote}</p>}
       </div>
@@ -172,6 +205,11 @@ export function FoodForm({ initial = {}, notice, submitLabel, onSubmit, onDelete
             onFound={(item) => (isFood(item) && !onDelete ? applyScan(item, item.name) : applyScan(item))}
             onNotFound={(code) => applyScan({ externalId: code })}
           />
+        </Sheet>
+      )}
+      {pasting && (
+        <Sheet title="Fill in from text" onClose={() => setPasting(false)}>
+          <PasteView onParsed={applyPaste} />
         </Sheet>
       )}
     </div>
