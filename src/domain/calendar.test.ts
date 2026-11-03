@@ -28,8 +28,8 @@ describe('monthGrid', () => {
   it('every cell is the day after the previous one, including across a clock change', () => {
     const flat = monthGrid(2026, 2).flat() // March 2026 contains the spring clock change
     for (let i = 1; i < flat.length; i++) {
-      const prev = new Date(flat[i - 1].date + 'T12:00:00')
-      const cur = new Date(flat[i].date + 'T12:00:00')
+      const prev = new Date(flat[i - 1].date + 'T12:00:00Z')
+      const cur = new Date(flat[i].date + 'T12:00:00Z')
       expect((cur.getTime() - prev.getTime()) / 86_400_000).toBe(1)
     }
   })
