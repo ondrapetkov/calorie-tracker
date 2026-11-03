@@ -110,6 +110,7 @@ export function AddFoodFlow({ mode, onClose }: Props) {
         <SearchView
           onPick={pick}
           onPickMeal={mode.kind === 'log' ? (detail) => push({ kind: 'meal', detail }) : undefined}
+          slot={mode.kind === 'log' ? mode.slot : undefined}
           onScan={() => push({ kind: 'scan' })}
           onCustom={() => push({ kind: 'custom' })}
         />
