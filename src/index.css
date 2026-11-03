@@ -142,3 +142,18 @@ input[type='range'].slider:focus-visible {
   outline-offset: 2px;
   border-radius: 9999px;
 }
+
+/* A tag chip that was just added automatically (e.g. from a meal ingredient) pulses briefly. */
+@keyframes tag-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  30% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-warn) 70%, transparent);
+  }
+}
+
+.tag-highlight {
+  animation: tag-pulse 0.75s ease-in-out 2;
+}
