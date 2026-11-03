@@ -10,13 +10,15 @@ import { draftToInput, isFood, type Item } from './draft'
 import { FoodForm } from './FoodForm'
 import { ScanView } from './ScanView'
 import { SearchView } from './SearchView'
+import { TagEditorRow } from '../tags/TagEditorRow'
 import { ChooseTagView } from './ChooseTagView'
 import { useVocabulary } from '../tags/useVocabulary'
 
 type View =
   | { kind: 'search' }
   | { kind: 'scan' }
-  | { kind: 'amount'; item: Item }
+  /** `tagIds`: tags chosen for an Open Food Facts product that is saved for the first time. */
+  | { kind: 'amount'; item: Item; tagIds?: string[] }
   | { kind: 'custom'; draft?: Partial<FoodDraft>; notice?: string }
   | { kind: 'meal'; detail: MealDetail }
   | { kind: 'choose'; tagId: string }
@@ -32,6 +34,11 @@ interface Props {
   onClose: () => void
 }
 
+/** The amount step; a product not saved yet starts with its suggested tags. */
+function amountView(item: Item): View {
+  return isFood(item) ? { kind: 'amount', item } : { kind: 'amount', item, tagIds: item.tagIds ?? [] }
+}
+
 export function AddFoodFlow({ mode, onClose }: Props) {
   const slot: Slot = mode.kind === 'log' ? mode.slot : 'snack'
   const vocab = useVocabulary()
@@ -44,7 +51,7 @@ export function AddFoodFlow({ mode, onClose }: Props) {
   const back = () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
 
   const pick = (item: Item) => {
-    if (isFood(item) || hasCoreNutrients(item.per100)) push({ kind: 'amount', item })
+    if (isFood(item) || hasCoreNutrients(item.per100)) push(amountView(item))
     else
       push({
         kind: 'custom',
@@ -58,13 +65,14 @@ export function AddFoodFlow({ mode, onClose }: Props) {
     replace({ kind: 'amount', item: food })
   }
 
-  const confirm = async (item: Item, grams: number, chosenSlot: Slot) => {
+  const confirm = async (item: Item, grams: number, chosenSlot: Slot, tagIds?: string[]) => {
     let food: Food
     if (isFood(item)) {
       food = item
     } else {
+      // A product already saved keeps its own tags; only a first save uses the confirmed ones.
       const existing = item.externalId ? await repo.findFoodByExternalId(item.externalId) : undefined
-      food = existing ?? (await repo.saveFood(draftToInput(item)))
+      food = existing ?? (await repo.saveFood({ ...draftToInput(item), ...(tagIds && { tagIds }) }))
     }
     if (mode.kind === 'log') {
       await repo.logFood({ food, grams, date: mode.date, slot: chosenSlot })
@@ -116,7 +124,7 @@ export function AddFoodFlow({ mode, onClose }: Props) {
       )}
       {view.kind === 'scan' && (
         <ScanView
-          onFound={(item) => replace({ kind: 'amount', item })}
+          onFound={(item) => replace(amountView(item))}
           onNotFound={(code) =>
             replace({
               kind: 'custom',
@@ -135,6 +143,16 @@ export function AddFoodFlow({ mode, onClose }: Props) {
             <div className="text-lg font-semibold">{view.item.name}</div>
             {view.item.brand && <div className="text-sm text-muted">{view.item.brand}</div>}
           </div>
+          {!isFood(view.item) && view.item.source === 'off' && (
+            <div>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Tags for this product</h3>
+              <TagEditorRow
+                tagIds={view.tagIds ?? []}
+                onAdd={(id) => replace({ ...view, tagIds: [...(view.tagIds ?? []).filter((t) => t !== id), id] })}
+                onRemove={(id) => replace({ ...view, tagIds: (view.tagIds ?? []).filter((t) => t !== id) })}
+              />
+            </div>
+          )}
           <AmountForm
             per100={{
               kcal: view.item.per100.kcal ?? 0,
@@ -151,7 +169,7 @@ export function AddFoodFlow({ mode, onClose }: Props) {
             initialSlot={slot}
             hideSlot={mode.kind === 'pick'}
             submitLabel={mode.kind === 'pick' ? 'Add to meal' : 'Add to diary'}
-            onSubmit={(grams, chosenSlot) => confirm(view.item, grams, chosenSlot)}
+            onSubmit={(grams, chosenSlot) => confirm(view.item, grams, chosenSlot, view.tagIds)}
           />
         </div>
       )}
