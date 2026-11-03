@@ -41,6 +41,8 @@ export function entityTables(db: AppDB): Record<string, Table<Row, string>> {
     profile: db.profile,
     weight_entry: db.weightEntries,
     water_entry: db.waterEntries,
+    tag: db.tags,
+    tag_group: db.tagGroups,
   } as unknown as Record<string, Table<Row, string>>
 }
 

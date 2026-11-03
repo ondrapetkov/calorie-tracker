@@ -1,4 +1,5 @@
 import type { FoodSource, Macros } from '../domain/nutrition'
+import { suggestTagsFromCategories } from '../domain/offCategories'
 
 /** A product as found online, not yet saved. Core nutrients may be missing. */
 export interface FoodDraft {
@@ -12,6 +13,8 @@ export interface FoodDraft {
   }
   defaultServingG: number | null
   defaultServingLabel: string | null
+  /** Bundled tags for basic foods; a guess from the categories for Open Food Facts products. */
+  tagIds?: string[]
 }
 
 type Nutriments = Record<string, unknown>
@@ -53,6 +56,7 @@ interface RawProduct {
   serving_size?: unknown
   serving_quantity?: unknown
   nutriments?: unknown
+  categories_tags?: unknown
 }
 
 const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null)
@@ -73,11 +77,14 @@ export function productToDraft(p: RawProduct): FoodDraft | null {
     per100: parseNutriments(nutriments),
     defaultServingG: typeof servingQty === 'number' && servingQty > 0 ? servingQty : null,
     defaultServingLabel: str(p.serving_size),
+    tagIds: Array.isArray(p.categories_tags)
+      ? suggestTagsFromCategories(p.categories_tags.filter((c): c is string => typeof c === 'string'))
+      : [],
   }
 }
 
 const FIELDS =
-  'code,product_name,product_name_cs,brands,quantity,serving_size,serving_quantity,nutriments'
+  'code,product_name,product_name_cs,brands,quantity,serving_size,serving_quantity,nutriments,categories_tags'
 
 export type LookupResult =
   | { status: 'found'; draft: FoodDraft }

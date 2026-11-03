@@ -279,6 +279,48 @@ describe('pulling', () => {
   })
 })
 
+describe('tags', () => {
+  it('carries a tag rename to the other device and an edit there does not undo it', async () => {
+    const tag = await a.repo.createTag('Kimchi', 'extras')
+    const food = await a.repo.saveFood({ ...oats, tagIds: [] })
+    const mealId = await a.repo.saveMeal({
+      name: 'Bowl',
+      servings: 1,
+      note: null,
+      items: [{ foodId: food.id, grams: 100 }],
+      slots: ['lunch'],
+      addedTagIds: [tag.id],
+      removedTagIds: [],
+    })
+    await syncOnce(a.db, server, 'u')
+    await syncOnce(b.db, server, 'u')
+    await wait(3)
+    await a.repo.renameTag(tag.id, 'Kimči')
+    const detail = (await b.repo.getMeal(mealId))!
+    await b.repo.saveMeal(
+      {
+        name: 'Bowl 2',
+        servings: 1,
+        note: null,
+        items: detail.items.map((i) => ({ id: i.id, foodId: i.foodId, grams: i.grams })),
+        slots: detail.slots,
+        addedTagIds: detail.meal.addedTagIds ?? [],
+        removedTagIds: [],
+      },
+      mealId,
+    )
+    await syncOnce(a.db, server, 'u')
+    await syncOnce(b.db, server, 'u')
+    await syncOnce(a.db, server, 'u')
+    for (const d of [a, b]) {
+      expect((await d.repo.vocabulary()).byId.get(tag.id)!.name).toBe('Kimči')
+      const m = (await d.repo.getMeal(mealId))!
+      expect(m.meal.name).toBe('Bowl 2')
+      expect(m.tagIds).toEqual([tag.id])
+    }
+  })
+})
+
 describe('reconcile', () => {
   it('collapses two weigh-ins for the same day to the later one, on both devices', async () => {
     await a.repo.setWeight('2026-10-08', 87)

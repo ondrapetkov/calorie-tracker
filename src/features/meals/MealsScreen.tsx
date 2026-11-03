@@ -1,9 +1,13 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Button, Sheet } from '../../components/ui'
+import { Button, Sheet, inputCls } from '../../components/ui'
 import { repo, type MealDetail } from '../../db/repo'
 import { localDate } from '../../domain/dates'
-import { defaultSlot } from '../../domain/nutrition'
+import { SLOT_LABELS, defaultSlot } from '../../domain/nutrition'
+import { matchesQuery } from '../../domain/search'
+import { EMPTY_FILTER, isFilterActive, matchesTagFilter, type TagFilter } from '../../domain/tagFilter'
+import { TagFilterBar } from '../tags/TagFilterBar'
+import { tagNames, useVocabulary } from '../tags/useVocabulary'
 import { formatNumber } from '../../domain/numbers'
 import { MealEditor } from './MealEditor'
 import { MealServingsForm } from './MealServingsForm'
@@ -15,6 +19,15 @@ export function MealsScreen() {
   const [viewing, setViewing] = useState<string | null>(null)
   const [editing, setEditing] = useState<MealDetail | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<TagFilter>(EMPTY_FILTER)
+  const vocab = useVocabulary()
+
+  const trimmed = query.trim()
+  const shown = meals.filter(
+    (m) => (!trimmed || matchesQuery(m.meal.name, trimmed)) && matchesTagFilter({ slots: m.slots, tagIds: m.tagIds }, filter),
+  )
+  const filtering = !!trimmed || isFilterActive(filter)
 
   // Always read the current version so the sheet reflects edits made while it is open.
   const viewed = meals.find((m) => m.meal.id === viewing) ?? null
@@ -34,7 +47,33 @@ export function MealsScreen() {
         </p>
       ) : (
         <div>
-          {meals.map((m) => (
+          <div className="mb-3 space-y-3">
+            <input
+              className={inputCls}
+              type="search"
+              placeholder="Search meals…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {vocab && (
+              <TagFilterBar
+                vocab={vocab}
+                filter={filter}
+                onChange={setFilter}
+                showSlots
+                resultCount={shown.length}
+                noun={['meal', 'meals']}
+              />
+            )}
+          </div>
+          {filtering && shown.length === 0 && (
+            <p className="py-2 text-sm text-muted">
+              {isFilterActive(filter) ? 'No meals match these filters.' : 'No meal matches.'}
+            </p>
+          )}
+          {shown.map((m) => {
+            const labels = [...m.slots.map((s) => SLOT_LABELS[s]), ...tagNames(vocab, m.tagIds)]
+            return (
             <button
               key={m.meal.id}
               type="button"
@@ -43,6 +82,7 @@ export function MealsScreen() {
             >
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{m.meal.name}</div>
+                {labels.length > 0 && <div className="truncate text-xs text-accent/80">{labels.join(' · ')}</div>}
                 <div className="truncate text-xs text-muted">
                   {m.items.length} ingredient{m.items.length === 1 ? '' : 's'} · {m.meal.servings}{' '}
                   {m.meal.servings === 1 ? 'serving' : 'servings'}
@@ -53,7 +93,8 @@ export function MealsScreen() {
                 <div className="text-xs text-muted">per serving</div>
               </div>
             </button>
-          ))}
+            )
+          })}
         </div>
       )}
 

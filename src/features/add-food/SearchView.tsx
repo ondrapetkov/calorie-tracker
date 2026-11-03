@@ -5,6 +5,8 @@ import { searchGenericFoods } from '../../data/searchGeneric'
 import { Button, inputCls } from '../../components/ui'
 import { repo, type MealDetail } from '../../db/repo'
 import { matchesQuery } from '../../domain/search'
+import { MEALS_WITHOUT_QUERY, orderMealsForSlot } from '../../domain/tagFilter'
+import type { Slot } from '../../domain/nutrition'
 import { formatNumber } from '../../domain/numbers'
 import type { Food } from '../../db/schema'
 import { FoodRow } from './FoodRow'
@@ -13,6 +15,8 @@ interface Props {
   onPick: (item: Food | FoodDraft) => void
   /** When set, saved meals are offered too. */
   onPickMeal?: (meal: MealDetail) => void
+  /** The diary slot being added to: its meals are listed first. */
+  slot?: Slot
   onScan: () => void
   onCustom: () => void
 }
@@ -33,7 +37,7 @@ function readCzechOnly(): boolean {
   }
 }
 
-export function SearchView({ onPick, onPickMeal, onScan, onCustom }: Props) {
+export function SearchView({ onPick, onPickMeal, onScan, onCustom, slot }: Props) {
   const [query, setQuery] = useState('')
   const [czechOnly, setCzechOnly] = useState(readCzechOnly)
   const [remote, setRemote] = useState<Remote>({ status: 'idle' })
@@ -47,9 +51,12 @@ export function SearchView({ onPick, onPickMeal, onScan, onCustom }: Props) {
   )
 
   const allMeals = useLiveQuery(() => (onPickMeal ? repo.listMeals() : Promise.resolve([])), [!!onPickMeal], [] as MealDetail[])
-  const meals = trimmed
-    ? allMeals.filter((m) => matchesQuery(m.meal.name, trimmed))
-    : allMeals.slice(0, 5)
+  const matching = trimmed ? allMeals.filter((m) => matchesQuery(m.meal.name, trimmed)) : allMeals
+  const meals = slot
+    ? orderMealsForSlot(matching, slot, !!trimmed)
+    : trimmed
+      ? matching
+      : matching.slice(0, MEALS_WITHOUT_QUERY)
 
   useEffect(() => {
     if (trimmed.length < 2) {

@@ -10,6 +10,7 @@ import { isFood } from './draft'
 import { ScanView } from './ScanView'
 import { PasteView } from './PasteView'
 import type { ParsedNutrition } from '../../domain/nutritionText'
+import { TagEditorRow } from '../tags/TagEditorRow'
 
 interface Props {
   initial?: Partial<FoodDraft>
@@ -22,6 +23,7 @@ interface Props {
 export function FoodForm({ initial = {}, notice, submitLabel, onSubmit, onDelete }: Props) {
   const [v, setV] = useState<FormValues>(() => toFormValues(initial))
   const [source, setSource] = useState<FoodSource>(initial.source ?? 'custom')
+  const [tagIds, setTagIds] = useState<string[]>(initial.tagIds ?? [])
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [scanning, setScanning] = useState(false)
@@ -43,6 +45,8 @@ export function FoodForm({ initial = {}, notice, submitLabel, onSubmit, onDelete
     const { values, filled } = fillEmptyFields(v, scanned)
     setV(values)
     if (scanned.source === 'off' && source === 'custom') setSource('off')
+    // Like the other fields, a scan only fills tags when none are set yet.
+    if (tagIds.length === 0 && scanned.tagIds?.length) setTagIds(scanned.tagIds)
     const what = describeFilled(filled)
     const parts: string[] = []
     if (savedAs) parts.push(`You already have "${savedAs}" saved with this barcode; saving this will add a second entry.`)
@@ -117,6 +121,7 @@ export function FoodForm({ initial = {}, notice, submitLabel, onSubmit, onDelete
         },
         defaultServingG: servingG,
         defaultServingLabel: servingG !== null ? v.servingLabel.trim() || null : null,
+        tagIds,
       })
     } finally {
       setBusy(false)
@@ -138,6 +143,14 @@ export function FoodForm({ initial = {}, notice, submitLabel, onSubmit, onDelete
       <Field label="Brand (optional)">
         <input className={inputCls} value={v.brand} onChange={(e) => set('brand')(e.target.value)} />
       </Field>
+      <div>
+        <span className="mb-1 block text-sm font-medium text-muted">Ingredient tags</span>
+        <TagEditorRow
+          tagIds={tagIds}
+          onAdd={(id) => setTagIds((all) => (all.includes(id) ? all : [...all, id]))}
+          onRemove={(id) => setTagIds((all) => all.filter((t) => t !== id))}
+        />
+      </div>
 
       <div>
         <Field label="Barcode (optional)">

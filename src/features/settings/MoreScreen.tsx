@@ -4,6 +4,7 @@ import { repo } from '../../db/repo'
 import { Sheet } from '../../components/ui'
 import { StatsPanel } from '../stats/StatsPanel'
 import { SyncCard } from './SyncCard'
+import { TagsManager } from '../tags/TagsManager'
 
 type Persisted = 'unknown' | 'yes' | 'no' | 'unsupported'
 
@@ -16,6 +17,7 @@ export function MoreScreen() {
   const [persisted, setPersisted] = useState<Persisted>('unknown')
   const [message, setMessage] = useState<string | null>(null)
   const [statsOpen, setStatsOpen] = useState(false)
+  const [tagsOpen, setTagsOpen] = useState(false)
 
   useEffect(() => {
     void readPersisted().then(setPersisted)
@@ -65,6 +67,14 @@ export function MoreScreen() {
       </Card>
 
       <Card>
+        <h2 className="font-semibold">Tags</h2>
+        <p className="mt-1 text-sm text-muted">Rename or delete your own tags and groups.</p>
+        <Button className="mt-3 w-full" onClick={() => setTagsOpen(true)}>
+          Open tags
+        </Button>
+      </Card>
+
+      <Card>
         <h2 className="font-semibold">Backup</h2>
         <p className="mt-1 text-sm text-muted">
           Everything is stored on this device first. Export a JSON copy of all your data as a backup that does not depend on any online service.
@@ -90,6 +100,11 @@ export function MoreScreen() {
         )}
       </Card>
 
+      {tagsOpen && (
+        <Sheet title="Tags" onClose={() => setTagsOpen(false)}>
+          <TagsManager />
+        </Sheet>
+      )}
       {statsOpen && (
         <Sheet title="Statistics" onClose={() => setStatsOpen(false)}>
           <StatsPanel />

@@ -97,13 +97,13 @@ Store the birth date, not the age, so the age stays correct over time.
 
 **food**
 
-`source` ('off' | 'usda' | 'custom'), `externalId` (barcode or FDC id, nullable), `name`, `brand` (nullable), `basis` ('g' | 'ml'), `per100` (an object with `kcal`, `protein`, `carbs`, `fat`, and `fiber`, `sugar`, `salt`; the last three nullable, since many products omit them), `defaultServingG` (nullable), `defaultServingLabel` (nullable, e.g. "1 slice"), `lastUsedAt`, `useCount`.
+`source` ('off' | 'usda' | 'custom'), `externalId` (barcode or FDC id, nullable), `name`, `brand` (nullable), `basis` ('g' | 'ml'), `per100` (an object with `kcal`, `protein`, `carbs`, `fat`, and `fiber`, `sugar`, `salt`; the last three nullable, since many products omit them), `defaultServingG` (nullable), `defaultServingLabel` (nullable, e.g. "1 slice"), `lastUsedAt`, `useCount`, `tagIds` (ingredient tag ids; missing on older rows, read as none).
 
 All nutrition is normalised to per 100 g (or per 100 ml). A food is written to this table only when it is logged, used in a meal or favourited. Raw search results live in memory only.
 
 **meal** (a saved recipe or template)
 
-`name`, `servings` (how many portions the recipe makes), `note`.
+`name`, `servings` (how many portions the recipe makes), `note`, `slots` (meal types, any of the four diary slots), `addedTagIds` and `removedTagIds` (hand-made changes; a meal's ingredient tags are always computed as the ingredients' tags plus added minus removed). See [the tags design](superpowers/specs/2026-11-03-tags-design.md).
 
 **meal_item**
 
@@ -124,6 +124,8 @@ All nutrition is normalised to per 100 g (or per 100 ml). A food is written to t
 **weight_entry**: `date`, `kg`, `measuredAt`. One entry per day is the norm; if there are several, the last one wins in charts.
 
 **water_entry**: `date`, `ml`, `loggedAt`. Daily total is the sum of non-deleted entries.
+
+**tag** and **tag_group** (Dexie v3): the owner's own tags (`name`, `groupId`) and groups (`name`, `sortOrder`). The built-in tags and groups live in code (`src/data/builtinTags.ts`) with stable ids and are never stored. Meals and foods store tag ids, so a rename is one row.
 
 ### 4.3 Dexie indexes
 
