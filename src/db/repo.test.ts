@@ -421,3 +421,26 @@ describe('tags', () => {
     expect(dump.tables.tagGroups).toHaveLength(1)
   })
 })
+
+describe('choosing a food for a tag', () => {
+  it('lists a basic food saved before tags existed under its bundled tag', async () => {
+    const old = { ...oats, id: 'old-rice', source: 'generic' as const, externalId: 'generic:rice-white-cooked', name: 'Rýže bílá, vařená', updatedAt: 1, deletedAt: null, dirty: 0 as const, lastUsedAt: null, useCount: 3 }
+    await db.foods.add(old)
+    expect((await repo.foodsWithTag('rice')).map((f) => f.id)).toEqual(['old-rice'])
+    // An explicit choice wins: a basic food whose tags were set (even to none) is not second-guessed.
+    await db.foods.update('old-rice', { tagIds: [] })
+    expect(await repo.foodsWithTag('rice')).toEqual([])
+  })
+
+  it('tags a food picked for a Choose row, once', async () => {
+    const basmati = await repo.saveFood({ ...oats, name: 'Rýže basmati' })
+    await repo.addTagToFood(basmati.id, 'rice')
+    await repo.addTagToFood(basmati.id, 'rice')
+    expect((await db.foods.get(basmati.id))!.tagIds).toEqual(['rice'])
+    const old = { ...oats, id: 'old-pepper', source: 'generic' as const, externalId: 'generic:pepper-red', updatedAt: 1, deletedAt: null, dirty: 0 as const, lastUsedAt: null, useCount: 0 }
+    await db.foods.add(old)
+    await repo.addTagToFood('old-pepper', 'sauce')
+    expect((await db.foods.get('old-pepper'))!.tagIds).toEqual(['peppers', 'sauce'])
+    expect((await db.foods.get(basmati.id))!.dirty).toBe(1)
+  })
+})

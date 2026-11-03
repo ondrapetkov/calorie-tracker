@@ -74,6 +74,11 @@ export function AddFoodFlow({ mode, onClose }: Props) {
       const existing = item.externalId ? await repo.findFoodByExternalId(item.externalId) : undefined
       food = existing ?? (await repo.saveFood({ ...draftToInput(item), ...(tagIds && { tagIds }) }))
     }
+    // Picked for a "Choose {tag}" row (directly or via search): the owner just said this food is
+    // that tag, so give it the tag. That also lets the meal's Choose row be replaced by it.
+    if (mode.kind === 'pick' && mode.chooseTagId) {
+      food = (await repo.addTagToFood(food.id, mode.chooseTagId)) ?? food
+    }
     if (mode.kind === 'log') {
       await repo.logFood({ food, grams, date: mode.date, slot: chosenSlot })
       mode.onLogged(`Added ${food.name}`)

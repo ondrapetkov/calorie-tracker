@@ -18,6 +18,8 @@ import { matchesQuery } from '../domain/search'
 import { effectiveMealTags } from '../domain/mealTags'
 import { buildVocabulary, findGroupByName, findTagByName, liveTagIds, type Vocabulary } from '../domain/tags'
 import { BUILTIN_GROUPS, BUILTIN_TAGS } from '../data/builtinTags'
+import { GENERIC_FOOD_TAGS } from '../data/genericFoodTags'
+import { GENERIC_PREFIX } from '../data/searchGeneric'
 
 /** Everything a caller provides when creating or editing a food. */
 export type FoodInput = Omit<Food, keyof SyncFields | 'lastUsedAt' | 'useCount'>
@@ -61,6 +63,13 @@ const BUILTIN_IDS = new Set([...BUILTIN_TAGS.map((t) => t.id), ...BUILTIN_GROUPS
 
 function assertCustom(id: string): void {
   if (BUILTIN_IDS.has(id)) throw new Error('Built-in tags and groups cannot be changed.')
+}
+
+/** A food's tags; a basic food saved before tags existed (no `tagIds`) has its bundled ones. */
+function storedOrBundledTags(f: Food): string[] {
+  if (f.tagIds !== undefined) return f.tagIds
+  if (!f.externalId?.startsWith(GENERIC_PREFIX)) return []
+  return GENERIC_FOOD_TAGS[f.externalId.slice(GENERIC_PREFIX.length)] ?? []
 }
 
 function cleanName(name: string): string {
@@ -476,11 +485,25 @@ export function createRepo(db: AppDB = defaultDb) {
       return buildVocabulary(tags, groups)
     },
 
-    /** Live foods carrying the tag, most used first, then by name. */
+    /**
+     * Live foods carrying the tag, most used first, then by name. A basic food saved before tags
+     * existed (no `tagIds` at all) counts with its bundled tags, so the "Choose" list still offers it.
+     */
     async foodsWithTag(tagId: string): Promise<Food[]> {
       if (!(await this.vocabulary()).byId.has(tagId)) return []
-      const all = await db.foods.filter((f) => f.deletedAt === null && (f.tagIds ?? []).includes(tagId)).toArray()
+      const all = await db.foods.filter((f) => f.deletedAt === null && storedOrBundledTags(f).includes(tagId)).toArray()
       return all.sort((a, b) => b.useCount - a.useCount || a.name.localeCompare(b.name))
+    },
+
+    /** Give a food a tag it lacks (the owner picked it for a "Choose {tag}" row). */
+    /** Returns the food as stored afterwards. */
+    async addTagToFood(foodId: string, tagId: string): Promise<Food | undefined> {
+      const food = await db.foods.get(foodId)
+      if (!food) return undefined
+      const current = storedOrBundledTags(food)
+      if (food.tagIds !== undefined && current.includes(tagId)) return food
+      await db.foods.update(foodId, { tagIds: current.includes(tagId) ? current : [...current, tagId], ...touch() })
+      return db.foods.get(foodId)
     },
 
     async createTag(name: string, groupId: string): Promise<Tag> {

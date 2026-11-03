@@ -18,8 +18,9 @@ interface Props {
 /** "Choose rice": the owner's rice foods (most used first), then bundled rice foods not saved yet. */
 export function ChooseTagView({ tagId, tagName, onPick, onSearchAll }: Props) {
   const own = useLiveQuery(() => repo.foodsWithTag(tagId), [tagId], [] as Food[])
-  const saved = useLiveQuery(() => repo.allFoods(), [], [] as Food[])
-  const savedIds = new Set(saved.map((f) => f.externalId).filter(Boolean))
+  // A bundled food already listed under "Your foods" is not offered twice. A saved copy without
+  // the tag stays offered here; picking it reuses the saved copy and gives it the tag.
+  const savedIds = new Set(own.map((f) => f.externalId).filter(Boolean))
   const basic = GENERIC_FOODS.filter((g) => (GENERIC_FOOD_TAGS[g.id] ?? []).includes(tagId))
     .map(genericToDraft)
     .filter((d) => !d.externalId || !savedIds.has(d.externalId))
