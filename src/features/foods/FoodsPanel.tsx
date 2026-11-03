@@ -5,6 +5,10 @@ import { repo } from '../../db/repo'
 import type { Food } from '../../db/schema'
 import { FoodForm } from '../add-food/FoodForm'
 import { FoodRow } from '../add-food/FoodRow'
+import { EMPTY_FILTER, isFilterActive, matchesTagFilter, type TagFilter } from '../../domain/tagFilter'
+import { liveTagIds } from '../../domain/tags'
+import { TagFilterBar } from '../tags/TagFilterBar'
+import { useVocabulary } from '../tags/useVocabulary'
 
 export function FoodsPanel() {
   const [query, setQuery] = useState('')
@@ -12,7 +16,11 @@ export function FoodsPanel() {
   const [creating, setCreating] = useState(false)
   const trimmed = query.trim()
   const loadedFoods = useLiveQuery(() => (trimmed ? repo.searchFoods(trimmed) : repo.allFoods()), [trimmed])
-  const foods: Food[] = loadedFoods ?? []
+  const [filter, setFilter] = useState<TagFilter>(EMPTY_FILTER)
+  const vocab = useVocabulary()
+  const foods: Food[] = (loadedFoods ?? []).filter(
+    (f) => !vocab || matchesTagFilter({ slots: [], tagIds: liveTagIds(vocab, f.tagIds) }, filter),
+  )
 
   return (
     <div className="space-y-4">
@@ -26,9 +34,23 @@ export function FoodsPanel() {
         />
         <Button onClick={() => setCreating(true)}>New</Button>
       </div>
+      {vocab && (loadedFoods?.length ?? 0) > 0 && (
+        <TagFilterBar
+          vocab={vocab}
+          filter={filter}
+          onChange={setFilter}
+          showSlots={false}
+          resultCount={foods.length}
+          noun={['food', 'foods']}
+        />
+      )}
       {loadedFoods === undefined ? null : foods.length === 0 ? (
         <p className="text-sm text-muted">
-          {trimmed ? 'No saved food matches.' : 'No saved foods yet. Foods are saved when you log them or create them here.'}
+          {isFilterActive(filter)
+            ? 'No foods match these filters.'
+            : trimmed
+              ? 'No saved food matches.'
+              : 'No saved foods yet. Foods are saved when you log them or create them here.'}
         </p>
       ) : (
         <div>
