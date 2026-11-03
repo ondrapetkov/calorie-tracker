@@ -22,6 +22,7 @@ This is my first project built with [Claude Code](https://claude.com/claude-code
 - Fill in a new food from copied text: paste a product page from [kaloricketabulky.cz](https://www.kaloricketabulky.cz) or the nutrition table of a label (on iPhone, Live Text copies it from a photo or screenshot), and the values are read on the device. Useful for fast food and bakery items without a barcode.
 - Amounts in grams, millilitres or named portions such as "1 slice (20 g)". Scanning a barcode in the food form fills in the blank fields, including the portion size, without overwriting anything you typed.
 - Saved meals (recipes) built from ingredients, logged by the serving. Each diary entry stores a snapshot of its nutrition, so editing a food or recipe later never rewrites past days.
+- Tags for meals (breakfast, lunch, dinner, snack, and base ingredients such as Chicken or Rice) and for foods, from a built-in list of 76 in ten groups plus your own tags and groups. The Meals and Foods tabs filter by tag chips (Lunch + Chicken narrows to lunch meals with chicken), a meal's ingredient tags follow its ingredients, a "Choose rice" row in the meal editor lists only your rice foods, and adding from a diary slot shows that slot's meals first. Basic foods come tagged; for packaged products the tags are guessed from Open Food Facts categories and confirmed when the product is first logged.
 - Month calendar to jump to any day, with a marker on days that have entries.
 
 **Body and goals**
@@ -114,7 +115,7 @@ The app is a static site. On Cloudflare Pages:
 
 ## Testing
 
-- **236 unit tests** (Vitest) cover the domain logic, Open Food Facts parsing and retries, the database layer, and the sync engine. Sync is tested with two simulated devices against a fake server that applies the same rules as the SQL: edits and deletes travelling both ways, conflicting edits, paging, cursor handling, failures and merges.
+- **293 unit tests** (Vitest) cover the domain logic, Open Food Facts parsing and retries, the database layer, and the sync engine. Sync is tested with two simulated devices against a fake server that applies the same rules as the SQL: edits and deletes travelling both ways, conflicting edits, paging, cursor handling, failures and merges.
 - The Supabase schema and its row level security were tested on a local PostgreSQL 16 with stand-ins for Supabase's auth functions.
 - During development every feature was also checked end to end in headless Chromium with Playwright, at phone size and under the production Content Security Policy, including a fake camera feed for barcode scanning and a mocked Supabase for sync. Those scripts were run ad hoc and are not part of the repository.
 
