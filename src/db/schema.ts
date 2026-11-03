@@ -23,6 +23,8 @@ export interface Food extends SyncFields {
   defaultServingLabel: string | null
   lastUsedAt: number | null
   useCount: number
+  /** Ingredient tag ids. Missing on rows from before tags existed: read as none. */
+  tagIds?: string[]
 }
 
 export interface LogEntry extends SyncFields, Macros {

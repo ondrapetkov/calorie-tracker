@@ -23,5 +23,6 @@ export function draftToInput(d: FoodDraft): FoodInput {
     per100: { ...d.per100, kcal, protein, carbs, fat },
     defaultServingG: d.defaultServingG,
     defaultServingLabel: d.defaultServingLabel,
+    tagIds: d.tagIds ?? [],
   }
 }

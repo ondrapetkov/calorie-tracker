@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { GENERIC_FOODS } from './genericFoods'
 import { searchGenericFoods } from './searchGeneric'
+import { GENERIC_FOOD_TAGS } from './genericFoodTags'
+import { BUILTIN_TAGS } from './builtinTags'
 
 describe('generic foods data', () => {
   it('has unique ids', () => {
@@ -43,5 +45,40 @@ describe('searchGenericFoods', () => {
 
   it('returns nothing for unrelated queries', () => {
     expect(searchGenericFoods('xyzzy')).toEqual([])
+  })
+})
+
+describe('generic food tags', () => {
+  // No tag in the agreed built-in list fits these; the owner can add custom tags for them.
+  const UNTAGGED = new Set(['eggplant', 'celeriac', 'radish', 'pear', 'watermelon'])
+
+  it('tags every other bundled food with known built-in tags', () => {
+    const known = new Set(BUILTIN_TAGS.map((t) => t.id))
+    for (const g of GENERIC_FOODS) {
+      const tags = GENERIC_FOOD_TAGS[g.id] ?? []
+      if (UNTAGGED.has(g.id)) expect(tags, g.id).toEqual([])
+      else expect(tags.length, g.id).toBeGreaterThan(0)
+      for (const t of tags) expect(known.has(t), `${g.id}: ${t}`).toBe(true)
+    }
+    for (const id of Object.keys(GENERIC_FOOD_TAGS)) expect(GENERIC_FOODS.some((g) => g.id === id), id).toBe(true)
+  })
+
+  it.each([
+    ['chicken-breast-raw', 'chicken'],
+    ['chicken-thigh-raw', 'chicken'],
+    ['rice-white-cooked', 'rice'],
+    ['cod-raw', 'white-fish'],
+    ['tuna-canned-water', 'tuna'],
+    ['egg-white', 'eggs'],
+    ['quark-skim', 'quark'],
+    ['greek-yogurt-0', 'yogurt'],
+    ['pepper-red', 'peppers'],
+    ['olive-oil', 'oil'],
+    ['sugar', 'honey-sugar'],
+    ['strawberries', 'berries'],
+  ])('%s is tagged %s', (id, tag) => expect(GENERIC_FOOD_TAGS[id]).toContain(tag))
+
+  it('carries the tags onto the draft', () => {
+    expect(searchGenericFoods('kureci prsa')[0].tagIds).toEqual(['chicken'])
   })
 })

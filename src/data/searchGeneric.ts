@@ -1,6 +1,7 @@
 import type { FoodDraft } from '../api/openFoodFacts'
 import { matchesQuery, rankScore } from '../domain/search'
 import { GENERIC_FOODS, type GenericFood } from './genericFoods'
+import { GENERIC_FOOD_TAGS } from './genericFoodTags'
 
 export const GENERIC_PREFIX = 'generic:'
 
@@ -14,6 +15,7 @@ export function genericToDraft(g: GenericFood): FoodDraft {
     per100: { ...g.per100 },
     defaultServingG: g.servingG ?? null,
     defaultServingLabel: g.servingLabel ?? null,
+    tagIds: [...(GENERIC_FOOD_TAGS[g.id] ?? [])],
   }
 }
 

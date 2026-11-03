@@ -44,6 +44,12 @@ describe('productToDraft', () => {
     })
   })
 
+  it('guesses tags from the product categories', () => {
+    expect(productToDraft({ code: '1', product_name: 'Basmati', categories_tags: ['en:rices'] })!.tagIds).toEqual(['rice'])
+    expect(productToDraft({ code: '1', product_name: 'Basmati' })!.tagIds).toEqual([])
+    expect(productToDraft({ code: '1', product_name: 'Basmati', categories_tags: 'en:rices' })!.tagIds).toEqual([])
+  })
+
   it('skips products without a name', () => {
     expect(productToDraft({ code: '1', nutriments: {} })).toBeNull()
   })
