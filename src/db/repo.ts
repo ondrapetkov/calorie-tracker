@@ -7,12 +7,17 @@ import {
   type MealItem,
   type Profile,
   type SyncFields,
+  type Tag,
+  type TagGroup,
   type WaterEntry,
   type WeightEntry,
 } from './schema'
 import { mealPerServing, mealTotal, type MealIngredient } from '../domain/meals'
 import { multiplyMacros, scaleMacros, type Macros, type Slot } from '../domain/nutrition'
 import { matchesQuery } from '../domain/search'
+import { effectiveMealTags } from '../domain/mealTags'
+import { buildVocabulary, findGroupByName, findTagByName, liveTagIds, type Vocabulary } from '../domain/tags'
+import { BUILTIN_GROUPS, BUILTIN_TAGS } from '../data/builtinTags'
 
 /** Everything a caller provides when creating or editing a food. */
 export type FoodInput = Omit<Food, keyof SyncFields | 'lastUsedAt' | 'useCount'>
@@ -25,6 +30,10 @@ export interface MealInput {
   note: string | null
   /** `id` is set for ingredients that already exist, so edits keep their identity. */
   items: { id?: string; foodId: string; grams: number }[]
+  /** Left out on an update: the stored value is kept. Left out on create: none. */
+  slots?: Slot[]
+  addedTagIds?: string[]
+  removedTagIds?: string[]
 }
 
 export interface MealDetail {
@@ -32,6 +41,32 @@ export interface MealDetail {
   items: (MealItem & { food: Food | undefined })[]
   total: Macros
   perServing: Macros
+  /** Meal types; [] for meals stored before tags existed. */
+  slots: Slot[]
+  /** Live ingredient tags, computed from the ingredients and the hand-made changes, in vocabulary order. */
+  tagIds: string[]
+}
+
+/** A tag or group name is already used (compared ignoring case, diacritics and spaces). */
+export class TagNameTakenError extends Error {
+  existingId: string
+  constructor(existingId: string) {
+    super('That name is already used.')
+    this.name = 'TagNameTakenError'
+    this.existingId = existingId
+  }
+}
+
+const BUILTIN_IDS = new Set([...BUILTIN_TAGS.map((t) => t.id), ...BUILTIN_GROUPS.map((g) => g.id)])
+
+function assertCustom(id: string): void {
+  if (BUILTIN_IDS.has(id)) throw new Error('Built-in tags and groups cannot be changed.')
+}
+
+function cleanName(name: string): string {
+  const trimmed = name.trim().replace(/\s+/g, ' ')
+  if (!trimmed) throw new Error('A name is required.')
+  return trimmed
 }
 
 export interface WaterSettings {
@@ -57,6 +92,40 @@ function touch(): Pick<SyncFields, 'updatedAt' | 'dirty'> {
 }
 
 export function createRepo(db: AppDB = defaultDb) {
+  async function loadMeal(id: string, vocab: Vocabulary): Promise<MealDetail | undefined> {
+    const meal = await db.meals.get(id)
+    if (!meal || meal.deletedAt !== null) return undefined
+    const rows = await db.mealItems
+      .where('mealId')
+      .equals(id)
+      .filter((i) => i.deletedAt === null)
+      .toArray()
+    rows.sort((a, b) => a.sortOrder - b.sortOrder)
+    const foods = await db.foods.bulkGet(rows.map((r) => r.foodId))
+    const items = rows.map((r, i) => ({ ...r, food: foods[i] }))
+    const ingredients: MealIngredient[] = items.flatMap((i) =>
+      i.food ? [{ per100: i.food.per100, grams: i.grams }] : [],
+    )
+    const ingredientTags = items.map((i) => liveTagIds(vocab, i.food?.tagIds))
+    const tags = effectiveMealTags(ingredientTags, {
+      addedTagIds: meal.addedTagIds ?? [],
+      removedTagIds: meal.removedTagIds ?? [],
+    })
+    return {
+      meal,
+      items,
+      total: mealTotal(ingredients),
+      perServing: mealPerServing(ingredients, meal.servings),
+      slots: meal.slots ?? [],
+      tagIds: liveTagIds(vocab, tags),
+    }
+  }
+
+  async function nextGroupOrder(): Promise<number> {
+    const groups = await db.tagGroups.filter((g) => g.deletedAt === null).toArray()
+    return groups.reduce((max, g) => Math.max(max, g.sortOrder), 0) + 1
+  }
+
   return {
     // ---- foods ----------------------------------------------------------
 
@@ -204,9 +273,25 @@ export function createRepo(db: AppDB = defaultDb) {
       return db.transaction('rw', db.meals, db.mealItems, async () => {
         let mealId = id
         if (mealId) {
-          await db.meals.update(mealId, { name: input.name, servings: input.servings, note: input.note, ...touch() })
+          await db.meals.update(mealId, {
+            name: input.name,
+            servings: input.servings,
+            note: input.note,
+            ...(input.slots && { slots: input.slots }),
+            ...(input.addedTagIds && { addedTagIds: input.addedTagIds }),
+            ...(input.removedTagIds && { removedTagIds: input.removedTagIds }),
+            ...touch(),
+          })
         } else {
-          const meal: Meal = { ...fresh(), name: input.name, servings: input.servings, note: input.note }
+          const meal: Meal = {
+            ...fresh(),
+            name: input.name,
+            servings: input.servings,
+            note: input.note,
+            slots: input.slots ?? [],
+            addedTagIds: input.addedTagIds ?? [],
+            removedTagIds: input.removedTagIds ?? [],
+          }
           await db.meals.add(meal)
           mealId = meal.id
         }
@@ -237,31 +322,14 @@ export function createRepo(db: AppDB = defaultDb) {
     },
 
     async getMeal(id: string): Promise<MealDetail | undefined> {
-      const meal = await db.meals.get(id)
-      if (!meal || meal.deletedAt !== null) return undefined
-      const rows = await db.mealItems
-        .where('mealId')
-        .equals(id)
-        .filter((i) => i.deletedAt === null)
-        .toArray()
-      rows.sort((a, b) => a.sortOrder - b.sortOrder)
-      const foods = await db.foods.bulkGet(rows.map((r) => r.foodId))
-      const items = rows.map((r, i) => ({ ...r, food: foods[i] }))
-      const ingredients: MealIngredient[] = items.flatMap((i) =>
-        i.food ? [{ per100: i.food.per100, grams: i.grams }] : [],
-      )
-      return {
-        meal,
-        items,
-        total: mealTotal(ingredients),
-        perServing: mealPerServing(ingredients, meal.servings),
-      }
+      return loadMeal(id, await this.vocabulary())
     },
 
     /** Live meals, most recently logged first, then alphabetically. */
     async listMeals(): Promise<MealDetail[]> {
       const meals = await db.meals.filter((m) => m.deletedAt === null).toArray()
-      const details = (await Promise.all(meals.map((m) => this.getMeal(m.id)))).filter(
+      const vocab = await this.vocabulary()
+      const details = (await Promise.all(meals.map((m) => loadMeal(m.id, vocab)))).filter(
         (d): d is MealDetail => d !== undefined,
       )
       const entries = await db.logEntries.filter((e) => e.mealId !== null && e.deletedAt === null).toArray()
@@ -400,11 +468,78 @@ export function createRepo(db: AppDB = defaultDb) {
       return new Set(rows.map((e) => e.date))
     },
 
+    // ---- tags -----------------------------------------------------------
+
+    /** Built-in tags merged with the owner's own live tags and groups. */
+    async vocabulary(): Promise<Vocabulary> {
+      const [tags, groups] = await Promise.all([db.tags.toArray(), db.tagGroups.toArray()])
+      return buildVocabulary(tags, groups)
+    },
+
+    /** Live foods carrying the tag, most used first, then by name. */
+    async foodsWithTag(tagId: string): Promise<Food[]> {
+      if (!(await this.vocabulary()).byId.has(tagId)) return []
+      const all = await db.foods.filter((f) => f.deletedAt === null && (f.tagIds ?? []).includes(tagId)).toArray()
+      return all.sort((a, b) => b.useCount - a.useCount || a.name.localeCompare(b.name))
+    },
+
+    async createTag(name: string, groupId: string): Promise<Tag> {
+      const clean = cleanName(name)
+      const taken = findTagByName(await this.vocabulary(), clean)
+      if (taken) throw new TagNameTakenError(taken.id)
+      const tag: Tag = { ...fresh(), name: clean, groupId }
+      await db.tags.add(tag)
+      return tag
+    },
+
+    async renameTag(id: string, name: string): Promise<void> {
+      assertCustom(id)
+      const clean = cleanName(name)
+      const taken = findTagByName(await this.vocabulary(), clean, id)
+      if (taken) throw new TagNameTakenError(taken.id)
+      await db.tags.update(id, { name: clean, ...touch() })
+    },
+
+    /** Soft delete. Meals and foods keep the stale id, which is ignored wherever tags are read. */
+    async deleteTag(id: string): Promise<void> {
+      assertCustom(id)
+      await db.tags.update(id, { deletedAt: Date.now(), ...touch() })
+    },
+
+    async createTagGroup(name: string): Promise<TagGroup> {
+      const clean = cleanName(name)
+      const taken = findGroupByName(await this.vocabulary(), clean)
+      if (taken) throw new TagNameTakenError(taken.id)
+      const group: TagGroup = { ...fresh(), name: clean, sortOrder: await nextGroupOrder() }
+      await db.tagGroups.add(group)
+      return group
+    },
+
+    async renameTagGroup(id: string, name: string): Promise<void> {
+      assertCustom(id)
+      const clean = cleanName(name)
+      const taken = findGroupByName(await this.vocabulary(), clean, id)
+      if (taken) throw new TagNameTakenError(taken.id)
+      await db.tagGroups.update(id, { name: clean, ...touch() })
+    },
+
+    /** Move the group's live tags to `moveTagsTo`, then soft-delete the group. */
+    async deleteTagGroup(id: string, moveTagsTo: string): Promise<void> {
+      assertCustom(id)
+      if (moveTagsTo === id) throw new Error('Choose another group for its tags.')
+      await db.transaction('rw', db.tags, db.tagGroups, async () => {
+        await db.tags
+          .filter((t) => t.groupId === id && t.deletedAt === null)
+          .modify({ groupId: moveTagsTo, ...touch() })
+        await db.tagGroups.update(id, { deletedAt: Date.now(), ...touch() })
+      })
+    },
+
     // ---- backup ---------------------------------------------------------
 
     /** Every table as plain JSON, including soft-deleted rows. */
     async exportAll() {
-      const [foods, logEntries, meals, mealItems, profile, weightEntries, waterEntries] = await Promise.all([
+      const [foods, logEntries, meals, mealItems, profile, weightEntries, waterEntries, tags, tagGroups] = await Promise.all([
         db.foods.toArray(),
         db.logEntries.toArray(),
         db.meals.toArray(),
@@ -412,12 +547,14 @@ export function createRepo(db: AppDB = defaultDb) {
         db.profile.toArray(),
         db.weightEntries.toArray(),
         db.waterEntries.toArray(),
+        db.tags.toArray(),
+        db.tagGroups.toArray(),
       ])
       return {
         app: 'calorie-tracker',
-        schemaVersion: 1,
+        schemaVersion: 2,
         exportedAt: new Date().toISOString(),
-        tables: { foods, logEntries, meals, mealItems, profile, weightEntries, waterEntries },
+        tables: { foods, logEntries, meals, mealItems, profile, weightEntries, waterEntries, tags, tagGroups },
       }
     },
   }

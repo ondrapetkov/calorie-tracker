@@ -47,6 +47,14 @@ export interface Meal extends SyncFields {
   name: string
   servings: number
   note: string | null
+  /** Meal types (diary slots) the meal is tagged with. Missing on old rows: read as none. */
+  slots?: Slot[]
+  /**
+   * Hand-made changes to the meal's ingredient tags. The tags themselves are computed from the
+   * ingredients each time (see domain/mealTags.ts). Missing on old rows: read as none.
+   */
+  addedTagIds?: string[]
+  removedTagIds?: string[]
 }
 
 export interface MealItem extends SyncFields {
@@ -81,6 +89,19 @@ export interface WaterEntry extends SyncFields {
   loggedAt: number
 }
 
+/** A tag the owner created. Built-in tags live in code (data/builtinTags.ts) and are never stored. */
+export interface Tag extends SyncFields {
+  name: string
+  /** A built-in group id (e.g. 'dairy') or the id of a custom TagGroup. */
+  groupId: string
+}
+
+/** A tag group the owner created. */
+export interface TagGroup extends SyncFields {
+  name: string
+  sortOrder: number
+}
+
 /** Small key-value store for device-local sync state (cursor, last sync time, signed-in user). */
 export interface SyncMeta {
   key: string
@@ -96,6 +117,8 @@ export class AppDB extends Dexie {
   weightEntries!: EntityTable<WeightEntry, 'id'>
   waterEntries!: EntityTable<WaterEntry, 'id'>
   syncMeta!: EntityTable<SyncMeta, 'key'>
+  tags!: EntityTable<Tag, 'id'>
+  tagGroups!: EntityTable<TagGroup, 'id'>
 
   constructor(name = 'calorie-tracker') {
     super(name)
@@ -113,6 +136,9 @@ export class AppDB extends Dexie {
     // v2: device-local sync state. Kept in IndexedDB (not localStorage) so it is wiped together with
     // the data it describes; a cursor that outlived its data would hide rows forever.
     this.version(2).stores({ syncMeta: 'key' })
+    // v3: the owner's own tags and tag groups. New fields on foods and meals need no migration;
+    // rows without them read as untagged.
+    this.version(3).stores({ tags: 'id, updatedAt, dirty', tagGroups: 'id, updatedAt, dirty' })
   }
 }
 

@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { AppDB } from './schema'
-import { createRepo, type FoodInput } from './repo'
+import { createRepo, TagNameTakenError, type FoodInput } from './repo'
+import { liveTagIds } from '../domain/tags'
 import { sumMacros } from '../domain/nutrition'
 
 const oats: FoodInput = {
@@ -289,5 +290,134 @@ describe('date ranges', () => {
     expect((await repo.entriesInRange('2026-10-01', '2026-10-05')).length).toBe(2)
     expect([...(await repo.datesWithEntries('2026-10-02', '2026-10-31'))].sort()).toEqual(['2026-10-05', '2026-10-09'])
     expect((await repo.datesWithEntries('2026-11-01', '2026-11-30')).size).toBe(0)
+  })
+})
+
+describe('tags', () => {
+  const now = () => ({ updatedAt: Date.now(), deletedAt: null, dirty: 1 as const })
+
+  it('saves and reads food tags; foods without the field read as untagged', async () => {
+    const rice = await repo.saveFood({ ...oats, name: 'Basmati', tagIds: ['rice'] })
+    const raw = { ...oats, id: 'raw-1', ...now(), lastUsedAt: null, useCount: 0 }
+    await db.foods.add(raw)
+    expect((await repo.foodsWithTag('rice')).map((f) => f.id)).toEqual([rice.id])
+    expect(liveTagIds(await repo.vocabulary(), (await db.foods.get('raw-1'))!.tagIds)).toEqual([])
+  })
+
+  it('lists foods with a tag, most used first', async () => {
+    const a = await repo.saveFood({ ...oats, name: 'A rice', tagIds: ['rice'] })
+    const b = await repo.saveFood({ ...oats, name: 'B rice', tagIds: ['rice'] })
+    await repo.logFood({ food: b, grams: 100, date: '2026-11-03', slot: 'lunch' })
+    expect((await repo.foodsWithTag('rice')).map((f) => f.id)).toEqual([b.id, a.id])
+  })
+
+  it("a meal follows its ingredients' tags, including tags added to a food later", async () => {
+    const a = await repo.saveFood({ ...oats, name: 'Chicken', tagIds: ['chicken'] })
+    const b = await repo.saveFood({ ...oats, name: 'Paprika', tagIds: [] })
+    const id = await repo.saveMeal({
+      name: 'Bowl',
+      servings: 1,
+      note: null,
+      items: [
+        { foodId: a.id, grams: 100 },
+        { foodId: b.id, grams: 50 },
+      ],
+      slots: ['lunch'],
+      addedTagIds: ['rice'],
+      removedTagIds: [],
+    })
+    let m = (await repo.getMeal(id))!
+    expect(m.tagIds).toEqual(['chicken', 'rice'])
+    expect(m.slots).toEqual(['lunch'])
+    await repo.updateFood(b.id, { ...oats, name: 'Paprika', tagIds: ['peppers'] })
+    m = (await repo.getMeal(id))!
+    expect(m.tagIds).toEqual(['chicken', 'rice', 'peppers'])
+  })
+
+  it('hand-removed tags stay off', async () => {
+    const a = await repo.saveFood({ ...oats, tagIds: ['chicken'] })
+    const id = await repo.saveMeal({
+      name: 'Bowl',
+      servings: 1,
+      note: null,
+      items: [{ foodId: a.id, grams: 100 }],
+      removedTagIds: ['chicken'],
+    })
+    expect((await repo.getMeal(id))!.tagIds).toEqual([])
+  })
+
+  it('keeps stored meal tags when an update leaves them out', async () => {
+    const id = await repo.saveMeal({ name: 'Bowl', servings: 1, note: null, items: [], addedTagIds: ['rice'], slots: ['dinner'] })
+    await repo.saveMeal({ name: 'Bowl 2', servings: 1, note: null, items: [] }, id)
+    const m = (await repo.getMeal(id))!
+    expect(m.tagIds).toEqual(['rice'])
+    expect(m.slots).toEqual(['dinner'])
+  })
+
+  it('ignores an ingredient whose food was deleted from the database', async () => {
+    const a = await repo.saveFood({ ...oats, tagIds: ['chicken'] })
+    const id = await repo.saveMeal({ name: 'Bowl', servings: 1, note: null, items: [{ foodId: a.id, grams: 100 }] })
+    await db.foods.delete(a.id)
+    const m = await repo.getMeal(id)
+    expect(m).toBeDefined()
+    expect(m!.tagIds).toEqual([])
+  })
+
+  it('reads a meal stored before tags existed', async () => {
+    await db.meals.add({ id: 'old', name: 'Old', servings: 1, note: null, ...now() })
+    const m = (await repo.getMeal('old'))!
+    expect(m.slots).toEqual([])
+    expect(m.tagIds).toEqual([])
+  })
+
+  it('creates, renames and deletes a custom tag; meals and foods follow without being rewritten', async () => {
+    const tag = await repo.createTag('Kimchi', 'extras')
+    const food = await repo.saveFood({ ...oats, tagIds: [tag.id] })
+    const id = await repo.saveMeal({ name: 'Bowl', servings: 1, note: null, items: [{ foodId: food.id, grams: 100 }] })
+    const before = (await db.foods.get(food.id))!.updatedAt
+    await repo.renameTag(tag.id, 'Kimči')
+    expect((await repo.vocabulary()).byId.get(tag.id)!.name).toBe('Kimči')
+    expect((await db.foods.get(food.id))!.updatedAt).toBe(before)
+    expect((await repo.getMeal(id))!.tagIds).toEqual([tag.id])
+    await repo.deleteTag(tag.id)
+    expect((await repo.getMeal(id))!.tagIds).toEqual([])
+    expect(await repo.foodsWithTag(tag.id)).toEqual([])
+  })
+
+  it('refuses duplicate tag and group names', async () => {
+    const tag = await repo.createTag('Kimchi', 'extras')
+    await expect(repo.createTag('  kimchi ', 'extras')).rejects.toMatchObject({ existingId: tag.id })
+    await expect(repo.createTag('  kimchi ', 'extras')).rejects.toBeInstanceOf(TagNameTakenError)
+    await expect(repo.renameTag(tag.id, 'CHICKEN')).rejects.toMatchObject({ existingId: 'chicken' })
+    await expect(repo.createTagGroup('meat')).rejects.toBeInstanceOf(TagNameTakenError)
+    await expect(repo.renameTag('chicken', 'X')).rejects.toThrow()
+    await expect(repo.deleteTag('chicken')).rejects.toThrow()
+    await expect(repo.createTag('   ', 'extras')).rejects.toThrow()
+  })
+
+  it('deleting a group moves its tags', async () => {
+    const g = await repo.createTagGroup('Fermented')
+    const tag = await repo.createTag('Kimchi', g.id)
+    await repo.deleteTagGroup(g.id, 'dairy')
+    const v = await repo.vocabulary()
+    expect(v.byId.get(tag.id)!.groupId).toBe('dairy')
+    expect(v.groups.some((x) => x.id === g.id)).toBe(false)
+  })
+
+  it('gives new groups increasing sort orders', async () => {
+    const g1 = await repo.createTagGroup('One')
+    const g2 = await repo.createTagGroup('Two')
+    expect(g2.sortOrder).toBeGreaterThan(g1.sortOrder)
+    await repo.renameTagGroup(g1.id, 'Uno')
+    expect((await repo.vocabulary()).groups.find((x) => x.id === g1.id)!.name).toBe('Uno')
+    await expect(repo.renameTagGroup(g2.id, 'uno')).rejects.toBeInstanceOf(TagNameTakenError)
+  })
+
+  it('exports tags and groups', async () => {
+    await repo.createTag('Kimchi', 'extras')
+    await repo.createTagGroup('Fermented')
+    const dump = await repo.exportAll()
+    expect(dump.tables.tags).toHaveLength(1)
+    expect(dump.tables.tagGroups).toHaveLength(1)
   })
 })
