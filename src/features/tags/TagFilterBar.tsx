@@ -43,7 +43,7 @@ export function TagFilterBar({ vocab, filter, onChange, showSlots, resultCount, 
         {filter.tagIds.map((id) => {
           const t = vocab.byId.get(id)
           return t ? (
-            <TagChip key={id} label={t.name} selected onRemove={() => onChange(toggleTag(filter, id))} />
+            <TagChip key={id} label={t.name} icon={t.icon} selected onRemove={() => onChange(toggleTag(filter, id))} />
           ) : null
         })}
         <TagChip label="＋ Ingredient" dashed onClick={() => setPicking(true)} />

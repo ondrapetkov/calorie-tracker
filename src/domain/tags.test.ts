@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_TAGS } from '../data/builtinTags'
-import { buildVocabulary, findGroupByName, findTagByName, liveTagIds, nameKey, searchTags } from './tags'
+import { CUSTOM_GROUP_ICON, buildVocabulary, findGroupByName, findTagByName, liveTagIds, nameKey, searchTags } from './tags'
 
 const v0 = buildVocabulary([], [])
 
@@ -19,7 +19,7 @@ describe('tag vocabulary', () => {
       'extras',
     ])
     expect(v0.byId.size).toBe(76)
-    expect(v0.byId.get('fast-food')).toEqual({ id: 'fast-food', name: 'Fast food', groupId: 'extras', builtin: true })
+    expect(v0.byId.get('fast-food')).toEqual({ id: 'fast-food', name: 'Fast food', groupId: 'extras', builtin: true, icon: '🍔' })
     expect(new Set(BUILTIN_TAGS.map((t) => t.id)).size).toBe(76)
   })
 
@@ -71,5 +71,46 @@ describe('tag vocabulary', () => {
   it('keeps only live tag ids, in vocabulary order, without duplicates', () => {
     expect(liveTagIds(v0, ['rice', 'gone', 'chicken', 'rice'])).toEqual(['chicken', 'rice'])
     expect(liveTagIds(v0, undefined)).toEqual([])
+  })
+})
+
+describe('tag icons', () => {
+  it('gives every built-in group and tag an icon', () => {
+    for (const g of v0.groups) {
+      expect(g.icon, g.id).toBeTruthy()
+      for (const t of g.tags) expect(t.icon, t.id).toBeTruthy()
+    }
+  })
+
+  it.each([
+    ['chicken', '🍗'],
+    ['rice', '🍚'],
+    ['peppers', '🫑'],
+    ['fast-food', '🍔'],
+    ['cheese', '🧀'],
+  ])('%s has its own emoji %s', (id, icon) => expect(v0.byId.get(id)!.icon).toBe(icon))
+
+  it.each([
+    ['quark', '🥚'],
+    ['salmon', '🐟'],
+    ['tofu', '🫘'],
+    ['quinoa', '🌾'],
+    ['beetroot', '🥦'],
+    ['protein-powder', '💪'],
+  ])('%s without an exact emoji uses its group icon %s', (id, icon) => expect(v0.byId.get(id)!.icon).toBe(icon))
+
+  it('custom tags take their group icon, custom groups a generic one', () => {
+    const v = buildVocabulary(
+      [
+        { id: 'u1', name: 'Halloumi', groupId: 'dairy', deletedAt: null },
+        { id: 'u2', name: 'Kimchi', groupId: 'g1', deletedAt: null },
+        { id: 'u3', name: 'Orphan', groupId: 'gone', deletedAt: null },
+      ],
+      [{ id: 'g1', name: 'Fermented', sortOrder: 1, deletedAt: null }],
+    )
+    expect(v.byId.get('u1')!.icon).toBe('🥚')
+    expect(v.groups.find((g) => g.id === 'g1')!.icon).toBe(CUSTOM_GROUP_ICON)
+    expect(v.byId.get('u2')!.icon).toBe(CUSTOM_GROUP_ICON)
+    expect(v.byId.get('u3')!.icon).toBe('🧂')
   })
 })

@@ -24,7 +24,7 @@ export function TagEditorRow({ tagIds, onAdd, onRemove, highlightIds = [], picke
           const t = vocab?.byId.get(id)
           if (!t) return null
           return (
-            <TagChip key={id} label={t.name} selected highlight={highlightIds.includes(id)} onRemove={() => onRemove(id)} />
+            <TagChip key={id} label={t.name} icon={t.icon} selected highlight={highlightIds.includes(id)} onRemove={() => onRemove(id)} />
           )
         })}
         <TagChip label="＋ Tag" dashed onClick={() => setPicking(true)} />

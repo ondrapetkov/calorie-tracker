@@ -1,5 +1,7 @@
 interface Props {
   label: string
+  /** Emoji shown before the label. */
+  icon?: string
   selected?: boolean
   /** Dashed accent outline, for "＋ Tag" style action chips. */
   dashed?: boolean
@@ -11,7 +13,7 @@ interface Props {
 }
 
 /** A rounded tag pill. */
-export function TagChip({ label, selected, dashed, highlight, onClick, onRemove }: Props) {
+export function TagChip({ label, icon, selected, dashed, highlight, onClick, onRemove }: Props) {
   const look = selected
     ? 'border-accent bg-accent font-semibold text-on-accent'
     : dashed
@@ -20,15 +22,25 @@ export function TagChip({ label, selected, dashed, highlight, onClick, onRemove 
   const cls = `inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-3 py-1 text-sm ${look} ${
     highlight ? 'tag-highlight' : ''
   }`
+  const text = (
+    <>
+      {icon && (
+        <span aria-hidden="true" className="-ml-0.5">
+          {icon}
+        </span>
+      )}
+      {label}
+    </>
+  )
   if (onRemove)
     return (
       <span className={cls}>
         {onClick ? (
-          <button type="button" onClick={onClick}>
-            {label}
+          <button type="button" className="inline-flex items-center gap-1" onClick={onClick}>
+            {text}
           </button>
         ) : (
-          label
+          text
         )}
         <button type="button" aria-label={`Remove ${label}`} className="-mr-1 px-1 leading-none" onClick={onRemove}>
           ✕
@@ -37,7 +49,7 @@ export function TagChip({ label, selected, dashed, highlight, onClick, onRemove 
     )
   return (
     <button type="button" aria-pressed={selected} className={`${cls} active:opacity-80`} onClick={onClick}>
-      {label}
+      {text}
     </button>
   )
 }

@@ -7,14 +7,20 @@ export interface TagInfo {
   name: string
   groupId: string
   builtin: boolean
+  /** Emoji; the group's icon for tags without one of their own. */
+  icon: string
 }
 
 export interface GroupInfo {
   id: string
   name: string
   builtin: boolean
+  icon: string
   tags: TagInfo[]
 }
+
+/** Icon of groups the owner creates (and so of their tags). */
+export const CUSTOM_GROUP_ICON = '🏷️'
 
 /** Built-in and custom tags merged: groups in display order, and every live tag by id. */
 export interface Vocabulary {
@@ -47,8 +53,8 @@ export function buildVocabulary(tags: CustomTagRow[], groups: CustomGroupRow[]):
     .filter((g) => g.deletedAt === null)
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
   const result: GroupInfo[] = [
-    ...BUILTIN_GROUPS.map((g) => ({ id: g.id, name: g.name, builtin: true, tags: [] as TagInfo[] })),
-    ...customGroups.map((g) => ({ id: g.id, name: g.name, builtin: false, tags: [] as TagInfo[] })),
+    ...BUILTIN_GROUPS.map((g) => ({ id: g.id, name: g.name, builtin: true, icon: g.icon, tags: [] as TagInfo[] })),
+    ...customGroups.map((g) => ({ id: g.id, name: g.name, builtin: false, icon: CUSTOM_GROUP_ICON, tags: [] as TagInfo[] })),
   ]
   const groupById = new Map(result.map((g) => [g.id, g]))
   for (const t of BUILTIN_TAGS) groupById.get(t.groupId)!.tags.push({ ...t, builtin: true })
@@ -56,7 +62,7 @@ export function buildVocabulary(tags: CustomTagRow[], groups: CustomGroupRow[]):
   const customTags = tags.filter((t) => t.deletedAt === null).sort((a, b) => a.name.localeCompare(b.name))
   for (const t of customTags) {
     const group = groupById.get(t.groupId) ?? groupById.get(FALLBACK_GROUP_ID)!
-    group.tags.push({ id: t.id, name: t.name, groupId: group.id, builtin: false })
+    group.tags.push({ id: t.id, name: t.name, groupId: group.id, builtin: false, icon: group.icon })
   }
 
   const byId = new Map<string, TagInfo>()

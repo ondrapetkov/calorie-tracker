@@ -81,7 +81,12 @@ export function TagsManager() {
             )
           ) : (
             <div className="mb-1 flex items-center gap-2">
-              <h3 className="flex-1 text-xs font-semibold uppercase tracking-wide text-muted">{g.name}</h3>
+              <h3 className="flex flex-1 items-center gap-2 text-sm font-semibold">
+                <span className="text-lg leading-none" aria-hidden="true">
+                  {g.icon}
+                </span>
+                {g.name}
+              </h3>
               {!g.builtin && (
                 <>
                   <Button variant="ghost" className={small} onClick={() => setEditing({ kind: 'group', group: g, name: g.name })}>
@@ -142,6 +147,9 @@ export function TagsManager() {
               </div>
             ) : (
               <div key={t.id} className="flex items-center gap-2 border-b border-line py-1.5 last:border-0">
+                <span className="w-6 shrink-0 text-center leading-none" aria-hidden="true">
+                  {t.icon}
+                </span>
                 <span className={`flex-1 truncate ${t.builtin ? 'text-muted' : ''}`}>{t.name}</span>
                 {!t.builtin && (
                   <>

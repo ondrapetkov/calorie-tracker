@@ -74,8 +74,11 @@ export function TagPicker({ title, selected, onToggle, onClose }: Props) {
         type="button"
         aria-pressed={on}
         onClick={() => pick(t)}
-        className="flex w-full items-center gap-3 border-b border-line py-2.5 text-left last:border-0 active:bg-surface-2"
+        className="flex w-full items-center gap-3 border-b border-line px-3 py-2.5 text-left last:border-0 active:bg-surface-2"
       >
+        <span className="w-6 shrink-0 text-center text-lg leading-none" aria-hidden="true">
+          {t.icon}
+        </span>
         <span className="min-w-0 flex-1 truncate">
           {t.name}
           {showGroup && vocab && (
@@ -101,8 +104,11 @@ export function TagPicker({ title, selected, onToggle, onClose }: Props) {
                 type="button"
                 disabled={busy}
                 onClick={() => create(g.id)}
-                className="flex w-full items-center border-b border-line py-2.5 text-left last:border-0 active:bg-surface-2"
+                className="flex w-full items-center gap-3 border-b border-line py-2.5 text-left last:border-0 active:bg-surface-2"
               >
+                <span className="w-6 text-center text-lg leading-none" aria-hidden="true">
+                  {g.icon}
+                </span>
                 {g.name}
               </button>
             ))}
@@ -141,13 +147,13 @@ export function TagPicker({ title, selected, onToggle, onClose }: Props) {
         />
         {message && <p className="text-sm text-accent">{message}</p>}
         {!vocab ? null : trimmed ? (
-          <div>
+          <div className="overflow-hidden rounded-xl border border-line-strong bg-surface">
             {hits.map((t) => row(t, true))}
             {!exact && (
               <button
                 type="button"
                 onClick={() => setCreating(trimmed)}
-                className="flex w-full items-center border-b border-line py-2.5 text-left text-accent last:border-0 active:bg-surface-2"
+                className="flex w-full items-center border-b border-line px-3 py-2.5 text-left text-accent last:border-0 active:bg-surface-2"
               >
                 Create "{trimmed}"
               </button>
@@ -156,8 +162,13 @@ export function TagPicker({ title, selected, onToggle, onClose }: Props) {
         ) : (
           vocab.groups.map((g) =>
             g.tags.length === 0 ? null : (
-              <section key={g.id}>
-                <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{g.name}</h3>
+              <section key={g.id} className="overflow-hidden rounded-xl border border-line-strong bg-surface">
+                <h3 className="flex items-center gap-2 border-b border-line-strong bg-surface-2 px-3 py-2 text-sm font-semibold">
+                  <span className="text-lg leading-none" aria-hidden="true">
+                    {g.icon}
+                  </span>
+                  {g.name}
+                </h3>
                 {g.tags.map((t) => row(t))}
               </section>
             ),
