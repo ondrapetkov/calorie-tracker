@@ -10,6 +10,8 @@ import { draftToInput, isFood, type Item } from './draft'
 import { FoodForm } from './FoodForm'
 import { ScanView } from './ScanView'
 import { SearchView } from './SearchView'
+import { ChooseTagView } from './ChooseTagView'
+import { useVocabulary } from '../tags/useVocabulary'
 
 type View =
   | { kind: 'search' }
@@ -17,12 +19,13 @@ type View =
   | { kind: 'amount'; item: Item }
   | { kind: 'custom'; draft?: Partial<FoodDraft>; notice?: string }
   | { kind: 'meal'; detail: MealDetail }
+  | { kind: 'choose'; tagId: string }
 
 type Mode =
   /** Log to the diary. */
   | { kind: 'log'; date: string; slot: Slot; onLogged: (message: string) => void }
   /** Pick an ingredient and amount for a recipe. */
-  | { kind: 'pick'; onPicked: (food: Food, grams: number) => void }
+  | { kind: 'pick'; onPicked: (food: Food, grams: number) => void; chooseTagId?: string }
 
 interface Props {
   mode: Mode
@@ -31,7 +34,10 @@ interface Props {
 
 export function AddFoodFlow({ mode, onClose }: Props) {
   const slot: Slot = mode.kind === 'log' ? mode.slot : 'snack'
-  const [stack, setStack] = useState<View[]>([{ kind: 'search' }])
+  const vocab = useVocabulary()
+  const [stack, setStack] = useState<View[]>(() => [
+    mode.kind === 'pick' && mode.chooseTagId ? { kind: 'choose', tagId: mode.chooseTagId } : { kind: 'search' },
+  ])
   const view = stack[stack.length - 1]
   const push = (v: View) => setStack((s) => [...s, v])
   const replace = (v: View) => setStack((s) => [...s.slice(0, -1), v])
@@ -76,8 +82,19 @@ export function AddFoodFlow({ mode, onClose }: Props) {
     onClose()
   }
 
+  const chooseName = view.kind === 'choose' ? (vocab?.byId.get(view.tagId)?.name ?? '') : ''
   const title =
-    view.kind === 'search' ? 'Add food' : view.kind === 'scan' ? 'Scan barcode' : view.kind === 'custom' ? 'Custom food' : view.kind === 'meal' ? 'Meal' : 'Amount'
+    view.kind === 'search'
+      ? 'Add food'
+      : view.kind === 'scan'
+        ? 'Scan barcode'
+        : view.kind === 'custom'
+          ? 'Custom food'
+          : view.kind === 'meal'
+            ? 'Meal'
+            : view.kind === 'choose'
+              ? `Choose ${chooseName.toLowerCase()}`
+              : 'Amount'
 
   return (
     <Sheet title={title} onBack={stack.length > 1 ? back : undefined} onClose={onClose}>
@@ -87,6 +104,14 @@ export function AddFoodFlow({ mode, onClose }: Props) {
           onPickMeal={mode.kind === 'log' ? (detail) => push({ kind: 'meal', detail }) : undefined}
           onScan={() => push({ kind: 'scan' })}
           onCustom={() => push({ kind: 'custom' })}
+        />
+      )}
+      {view.kind === 'choose' && (
+        <ChooseTagView
+          tagId={view.tagId}
+          tagName={chooseName}
+          onPick={pick}
+          onSearchAll={() => push({ kind: 'search' })}
         />
       )}
       {view.kind === 'scan' && (
