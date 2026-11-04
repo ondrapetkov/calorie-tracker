@@ -75,6 +75,8 @@ export function EditMealEntrySheet({ entry, onClose, onDeleted }: Props) {
     try {
       await repo.updateMealEntry(entry.id, { slot, plate: after, updateSavedMeal })
       onClose()
+    } catch (e) {
+      setError(`Couldn't save the entry. ${e instanceof Error ? e.message : ''}`.trim())
     } finally {
       setBusy(false)
     }

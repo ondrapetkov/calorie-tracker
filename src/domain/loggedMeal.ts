@@ -30,8 +30,10 @@ export function plateFromMeal(
   recipeServings: number,
   servingsLogged: number,
 ): LoggedMealItem[] {
+  // Row ids are the saved-meal item ids, so rebuilding the plate of an old entry twice
+  // gives the same rows (plate edits are matched to the plate they were made on by id).
   return items.map((i) => ({
-    id: crypto.randomUUID(),
+    id: i.mealItemId,
     mealItemId: i.mealItemId,
     foodId: i.foodId,
     name: i.name,

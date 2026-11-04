@@ -236,6 +236,33 @@ describe('meals', () => {
     expect(updated.items).toBeUndefined()
   })
 
+  it('carries a plate edit of an old entry over to the saved meal without losing ingredients', async () => {
+    const { mealId, chicken, rice } = await setup()
+    const entry = await repo.logMeal({ mealId, servings: 1, date: '2026-10-08', slot: 'dinner' })
+    await db.logEntries.update(entry.id, { items: undefined, recipeServings: undefined })
+    const { plate } = (await repo.mealEntryPlate(entry.id))!
+    await repo.updateMealEntry(entry.id, { slot: 'dinner', plate: plateWith(plate, rice.id, 150), updateSavedMeal: true })
+    expect((await repo.getMeal(mealId))!.items.map((i) => [i.foodId, i.grams])).toEqual([
+      [chicken.id, 300],
+      [rice.id, 300],
+    ])
+    const updated = (await db.logEntries.get(entry.id))!
+    expect(updated.recipeServings).toBe(2)
+    expect(updated.items!.map((r) => r.grams)).toEqual([150, 150])
+  })
+
+  it('treats an unchanged rebuilt plate of an old entry as a slot-only edit', async () => {
+    const { mealId } = await setup()
+    const entry = await repo.logMeal({ mealId, servings: 1, date: '2026-10-08', slot: 'dinner' })
+    await db.logEntries.update(entry.id, { items: undefined, recipeServings: undefined })
+    const { plate } = (await repo.mealEntryPlate(entry.id))!
+    await repo.updateMealEntry(entry.id, { slot: 'lunch', plate, updateSavedMeal: true })
+    const updated = (await db.logEntries.get(entry.id))!
+    expect(updated.items).toBeUndefined()
+    expect(updated.plateEdited).toBeUndefined()
+    expect(updated.slot).toBe('lunch')
+  })
+
   it('does not flag an old entry whose saved meal is unchanged', async () => {
     const { mealId } = await setup()
     const entry = await repo.logMeal({ mealId, servings: 1, date: '2026-10-08', slot: 'dinner' })

@@ -117,7 +117,7 @@ The app is a static site. On Cloudflare Pages:
 
 ## Testing
 
-- **332 unit tests** (Vitest) cover the domain logic, Open Food Facts parsing and retries, the database layer, and the sync engine. Sync is tested with two simulated devices against a fake server that applies the same rules as the SQL: edits and deletes travelling both ways, conflicting edits, paging, cursor handling, failures and merges.
+- **334 unit tests** (Vitest) cover the domain logic, Open Food Facts parsing and retries, the database layer, and the sync engine. Sync is tested with two simulated devices against a fake server that applies the same rules as the SQL: edits and deletes travelling both ways, conflicting edits, paging, cursor handling, failures and merges.
 - The Supabase schema and its row level security were tested on a local PostgreSQL 16 with stand-ins for Supabase's auth functions.
 - **End-to-end tests** (Playwright, `npm run e2e`) drive the real app in desktop Firefox and in WebKit at iPhone 15 size (standing in for the Safari home-screen app): logging a bundled food from search, editing and deleting an entry with undo, creating a custom food, building a meal and logging it, editing a logged meal's plate with and without updating the saved meal, and logging weight. Each test starts with empty local data, and Open Food Facts is blocked so the results do not depend on the network.
 - During development, features were also checked ad hoc in headless Chromium, including a fake camera feed for barcode scanning and a mocked Supabase for sync.

@@ -121,3 +121,39 @@ test('edits a logged meal portion and optionally updates the saved meal', async 
   await expect(entry).toContainText('205')
   expect(await savedChicken()).toBe('241')
 })
+
+test('shows an error when saving a logged meal edit fails', async ({ page }) => {
+  await tab(page, 'Meals')
+  await page.getByRole('button', { name: 'New meal' }).click()
+  const editor = sheet(page, 'New meal')
+  await editor.getByLabel('Name', { exact: true }).fill('Zkušební jídlo')
+  await editor.getByRole('button', { name: '+ Add ingredient' }).click()
+  await pickFood(page, 'kureci prsa', 'Kuřecí prsa bez kůže, syrová')
+  await page.getByLabel(/Amount \(g\)/).fill('200')
+  await page.getByRole('button', { name: 'Add to meal' }).click()
+  await editor.getByRole('button', { name: 'Done' }).click()
+  await expect(editor).toBeHidden()
+
+  await tab(page, 'Diary')
+  await page.getByRole('button', { name: 'Add food' }).click()
+  await page.getByPlaceholder(/Search foods/).fill('zkusebni jidlo')
+  await page.getByRole('button', { name: /Zkušební jídlo/ }).first().click()
+  await page.getByRole('button', { name: 'Add to diary' }).click()
+
+  await page.getByRole('button', { name: /Zkušební jídlo/ }).click()
+  const edit = sheet(page, 'Edit entry')
+  await edit.getByLabel('Amount of Kuřecí prsa bez kůže, syrová').fill('250')
+  // Every write from now on fails, as on a full or broken database.
+  await page.evaluate(() => {
+    const fail = () => {
+      throw new DOMException('Write blocked for the test', 'QuotaExceededError')
+    }
+    IDBObjectStore.prototype.put = fail
+    IDBObjectStore.prototype.add = fail
+    IDBCursor.prototype.update = fail
+  })
+  await edit.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Just this entry' }).click()
+  await expect(edit.getByRole('alert')).toContainText("Couldn't save")
+  await expect(edit).toBeVisible()
+})
