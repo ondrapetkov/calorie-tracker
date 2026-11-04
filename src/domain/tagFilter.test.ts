@@ -4,7 +4,7 @@ import {
   EMPTY_FILTER,
   isFilterActive,
   matchesTagFilter,
-  orderMealsForSlot,
+  splitMealsForSlot,
   toggleSlot,
   toggleTag,
   toggleUntagged,
@@ -56,14 +56,17 @@ describe('tag filter', () => {
     expect(toggleUntagged(toggleUntagged(EMPTY_FILTER))).toEqual(EMPTY_FILTER)
   })
 
-  it('orders meals for a slot: the slot first, others filling up to five without a query, everything with one', () => {
+  it('splits meals for a slot: the slot first, others filling up to five without a query, everything with one', () => {
     const meals = [m(['dinner'], []), m(['lunch'], []), m([], []), m(['lunch', 'dinner'], []), m([], []), m([], []), m([], [])]
-    const empty = orderMealsForSlot(meals, 'lunch', false)
-    expect(empty.slice(0, 2)).toEqual([meals[1], meals[3]])
-    expect(empty[2]).toBe(meals[0])
-    expect(empty).toHaveLength(5)
-    expect(orderMealsForSlot(meals, 'lunch', true)).toHaveLength(7)
+    const empty = splitMealsForSlot(meals, 'lunch', false)
+    expect(empty.forSlot).toEqual([meals[1], meals[3]])
+    expect(empty.others).toEqual([meals[0], meals[2], meals[4]])
+    const all = splitMealsForSlot(meals, 'lunch', true)
+    expect(all.forSlot).toHaveLength(2)
+    expect(all.others).toHaveLength(5)
     const sixLunches = Array.from({ length: 6 }, () => m(['lunch'], []))
-    expect(orderMealsForSlot([...sixLunches, m([], [])], 'lunch', false)).toHaveLength(6)
+    const many = splitMealsForSlot([...sixLunches, m([], [])], 'lunch', false)
+    expect(many.forSlot).toHaveLength(6)
+    expect(many.others).toEqual([])
   })
 })

@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { searchProducts, type FoodDraft } from '../../api/openFoodFacts'
 import { searchGenericFoods } from '../../data/searchGeneric'
 import { Button, inputCls } from '../../components/ui'
 import { repo, type MealDetail } from '../../db/repo'
 import { matchesQuery } from '../../domain/search'
-import { MEALS_WITHOUT_QUERY, orderMealsForSlot } from '../../domain/tagFilter'
-import type { Slot } from '../../domain/nutrition'
+import { MEALS_WITHOUT_QUERY, splitMealsForSlot } from '../../domain/tagFilter'
+import { SLOT_LABELS, type Slot } from '../../domain/nutrition'
 import { formatNumber } from '../../domain/numbers'
 import type { Food } from '../../db/schema'
 import { FoodRow } from './FoodRow'
@@ -52,11 +52,9 @@ export function SearchView({ onPick, onPickMeal, onScan, onCustom, slot }: Props
 
   const allMeals = useLiveQuery(() => (onPickMeal ? repo.listMeals() : Promise.resolve([])), [!!onPickMeal], [] as MealDetail[])
   const matching = trimmed ? allMeals.filter((m) => matchesQuery(m.meal.name, trimmed)) : allMeals
-  const meals = slot
-    ? orderMealsForSlot(matching, slot, !!trimmed)
-    : trimmed
-      ? matching
-      : matching.slice(0, MEALS_WITHOUT_QUERY)
+  const { forSlot, others } = slot
+    ? splitMealsForSlot(matching, slot, !!trimmed)
+    : { forSlot: [], others: trimmed ? matching : matching.slice(0, MEALS_WITHOUT_QUERY) }
 
   useEffect(() => {
     if (trimmed.length < 2) {
@@ -109,10 +107,23 @@ export function SearchView({ onPick, onPickMeal, onScan, onCustom, slot }: Props
         <Button onClick={onScan}>Scan</Button>
       </div>
 
-      <section>
-        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
-          {trimmed ? 'Your foods' : 'Recent'}
-        </h3>
+      {slot && forSlot.length > 0 && (
+        <Section title={`For ${SLOT_LABELS[slot].toLowerCase()}`}>
+          {forSlot.map((m) => (
+            <MealRow key={m.meal.id} meal={m} onClick={() => onPickMeal?.(m)} />
+          ))}
+        </Section>
+      )}
+
+      {others.length > 0 && (
+        <Section title={forSlot.length > 0 ? 'Other meals' : 'Your meals'}>
+          {others.map((m) => (
+            <MealRow key={m.meal.id} meal={m} onClick={() => onPickMeal?.(m)} />
+          ))}
+        </Section>
+      )}
+
+      <Section title={trimmed ? 'Your foods' : 'Recent foods'}>
         {local.length === 0 ? (
           <p className="py-2 text-sm text-muted">
             {trimmed ? 'No saved food matches.' : 'Foods you log will show up here.'}
@@ -120,50 +131,26 @@ export function SearchView({ onPick, onPickMeal, onScan, onCustom, slot }: Props
         ) : (
           local.map((f) => <FoodRow key={f.id} item={f} onClick={() => onPick(f)} />)
         )}
-      </section>
-
-      {meals.length > 0 && (
-        <section>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Your meals</h3>
-          {meals.map((m) => (
-            <button
-              key={m.meal.id}
-              type="button"
-              onClick={() => onPickMeal?.(m)}
-              className="flex w-full items-center gap-3 border-b border-line py-2.5 text-left last:border-0 active:bg-surface-2"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{m.meal.name}</div>
-                <div className="truncate text-xs text-muted">
-                  {formatNumber(m.perServing.kcal)} kcal · P {formatNumber(m.perServing.protein, 1)} · C{' '}
-                  {formatNumber(m.perServing.carbs, 1)} · F {formatNumber(m.perServing.fat, 1)} per serving
-                </div>
-              </div>
-            </button>
-          ))}
-        </section>
-      )}
+      </Section>
 
       {basic.length > 0 && (
-        <section>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
-            Basic foods <span className="font-normal normal-case">(approximate reference values)</span>
-          </h3>
+        <Section title="Basic foods" note="(approximate reference values)">
           {basic.map((d) => (
             <FoodRow key={d.externalId} item={d} onClick={() => onPick(d)} />
           ))}
-        </section>
+        </Section>
       )}
 
       {trimmed.length >= 2 && (
-        <section>
-          <div className="mb-1 flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Open Food Facts</h3>
+        <Section
+          title="Open Food Facts"
+          aside={
             <label className="flex items-center gap-1.5 text-xs text-muted">
               <input type="checkbox" checked={czechOnly} onChange={(e) => toggleCzech(e.target.checked)} />
               Sold in CZ only
             </label>
-          </div>
+          }
+        >
           {remote.status === 'loading' && <p className="py-2 text-sm text-muted">Searching…</p>}
           {remote.status === 'error' && (
             <div className="py-2 text-sm">
@@ -186,12 +173,47 @@ export function SearchView({ onPick, onPickMeal, onScan, onCustom, slot }: Props
           {drafts.map((d, i) => (
             <FoodRow key={`${d.externalId}-${i}`} item={d} onClick={() => onPick(d)} />
           ))}
-        </section>
+        </Section>
       )}
 
       <Button className="w-full" onClick={onCustom}>
         Create custom food
       </Button>
     </div>
+  )
+}
+
+/** A boxed list with a yellow heading, so the add sheet's lists are easy to tell apart. */
+function Section({ title, note, aside, children }: { title: string; note?: string; aside?: ReactNode; children: ReactNode }) {
+  const id = useId()
+  return (
+    <section aria-labelledby={id} className="rounded-xl border border-line bg-surface px-3 pb-1 pt-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <h3 id={id} className="text-xs font-semibold uppercase tracking-wide text-accent">
+          {title}
+        </h3>
+        {aside}
+      </div>
+      {note && <p className="text-xs text-muted">{note}</p>}
+      {children}
+    </section>
+  )
+}
+
+function MealRow({ meal: m, onClick }: { meal: MealDetail; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 border-b border-line py-2.5 text-left last:border-0 active:bg-surface-2"
+    >
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-medium">{m.meal.name}</div>
+        <div className="truncate text-xs text-muted">
+          {formatNumber(m.perServing.kcal)} kcal · P {formatNumber(m.perServing.protein, 1)} · C{' '}
+          {formatNumber(m.perServing.carbs, 1)} · F {formatNumber(m.perServing.fat, 1)} per serving
+        </div>
+      </div>
+    </button>
   )
 }
