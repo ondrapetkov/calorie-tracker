@@ -141,7 +141,7 @@ export function AddFoodFlow({ mode, onClose }: Props) {
         />
       )}
       {view.kind === 'custom' && (
-        <FoodForm initial={view.draft} notice={view.notice} submitLabel="Save and continue" onSubmit={saveCustom} />
+        <FoodForm initial={view.draft} notice={view.notice} onSubmit={saveCustom} />
       )}
       {view.kind === 'amount' && (
         <div className="space-y-4">
