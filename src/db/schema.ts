@@ -1,3 +1,4 @@
+import type { LoggedMealItem } from '../domain/loggedMeal'
 import Dexie, { type EntityTable } from 'dexie'
 import type { FoodSource, Macros, Slot } from '../domain/nutrition'
 
@@ -41,6 +42,15 @@ export interface LogEntry extends SyncFields, Macros {
   /** Display name snapshot, so the diary still reads correctly if the food is deleted. */
   label: string
   loggedAt: number
+  /**
+   * For a meal: what is on the plate, ingredient by ingredient, with its own nutrition.
+   * The entry's macros are the sum of these rows. Missing on entries logged before plates existed.
+   */
+  items?: LoggedMealItem[]
+  /** For a meal: how many servings the recipe made when this was logged. Missing on old entries. */
+  recipeServings?: number
+  /** For a meal: true once its plate has been edited from the diary. */
+  plateEdited?: boolean
 }
 
 export interface Meal extends SyncFields {

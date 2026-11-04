@@ -14,6 +14,14 @@ import {
 } from './schema'
 import { mealPerServing, mealTotal, type MealIngredient } from '../domain/meals'
 import { multiplyMacros, scaleMacros, type Macros, type Slot } from '../domain/nutrition'
+import {
+  plateChanged,
+  plateFromMeal,
+  plateMacros,
+  savedMealFromPlate,
+  scaleFactor,
+  type LoggedMealItem,
+} from '../domain/loggedMeal'
 import { matchesQuery } from '../domain/search'
 import { effectiveMealTags } from '../domain/mealTags'
 import { buildVocabulary, findGroupByName, findTagByName, liveTagIds, type Vocabulary } from '../domain/tags'
@@ -36,6 +44,17 @@ export interface MealInput {
   slots?: Slot[]
   addedTagIds?: string[]
   removedTagIds?: string[]
+}
+
+export interface MealEntryPlate {
+  plate: LoggedMealItem[]
+  /** Servings the recipe made when the entry was logged (the saved meal's servings now, for old entries). */
+  recipeServings: number
+  /** Built from the saved meal as it is now, because the entry predates plates. */
+  rebuilt: boolean
+  /** Rebuilt, and its total differs from what the entry stored. */
+  differsFromStored: boolean
+  savedMealExists: boolean
 }
 
 export interface MealDetail {
@@ -98,6 +117,15 @@ function fresh(): SyncFields {
 /** Fields to merge into a row on every local write. */
 function touch(): Pick<SyncFields, 'updatedAt' | 'dirty'> {
   return { updatedAt: Date.now(), dirty: 1 }
+}
+
+/** A saved meal's ingredients as plate sources, skipping rows whose food is missing. */
+function recipeRows(detail: MealDetail) {
+  return detail.items.flatMap((i) =>
+    i.food
+      ? [{ mealItemId: i.id, foodId: i.foodId, name: i.food.name, basis: i.food.basis, per100: i.food.per100, grams: i.grams }]
+      : [],
+  )
 }
 
 export function createRepo(db: AppDB = defaultDb) {
@@ -242,13 +270,14 @@ export function createRepo(db: AppDB = defaultDb) {
       return rows.sort((a, b) => a.loggedAt - b.loggedAt)
     },
 
-    /** Log `servings` portions of a saved meal. Macros come from the ingredients as they are now. */
+    /** Log `servings` portions of a saved meal. The plate snapshot comes from the ingredients as they are now. */
     async logMeal(params: { mealId: string; servings: number; date: string; slot: Slot }): Promise<LogEntry> {
       const detail = await this.getMeal(params.mealId)
       if (!detail) throw new Error('Meal not found')
+      const items = plateFromMeal(recipeRows(detail), detail.meal.servings, params.servings)
       const entry: LogEntry = {
         ...fresh(),
-        ...multiplyMacros(detail.perServing, params.servings),
+        ...plateMacros(items),
         date: params.date,
         slot: params.slot,
         foodId: null,
@@ -258,21 +287,80 @@ export function createRepo(db: AppDB = defaultDb) {
         servings: params.servings,
         label: detail.meal.name,
         loggedAt: Date.now(),
+        items,
+        recipeServings: detail.meal.servings,
       }
       await db.logEntries.add(entry)
       return entry
     },
 
-    /** Change the number of portions and/or the slot of a logged meal, rescaling its snapshot. */
-    async updateMealEntry(id: string, changes: { servings: number; slot: Slot }): Promise<void> {
-      const entry = await db.logEntries.get(id)
-      if (!entry) return
-      const ratio = entry.servings && entry.servings > 0 ? changes.servings / entry.servings : 1
-      await db.logEntries.update(id, {
-        ...multiplyMacros(entry, ratio),
-        servings: changes.servings,
-        slot: changes.slot,
-        ...touch(),
+    /**
+     * The plate of a logged meal. Entries logged before plates existed get one rebuilt from
+     * the saved meal as it is now (nothing is written). Null when that isn't possible: an old
+     * entry whose saved meal has been deleted.
+     */
+    async mealEntryPlate(entryId: string): Promise<MealEntryPlate | null> {
+      const entry = await db.logEntries.get(entryId)
+      if (!entry || !entry.mealId) return null
+      const detail = await this.getMeal(entry.mealId)
+      const servingsLogged = entry.servings ?? 1
+      if (entry.items) {
+        return {
+          plate: entry.items,
+          recipeServings: entry.recipeServings ?? detail?.meal.servings ?? servingsLogged,
+          rebuilt: false,
+          differsFromStored: false,
+          savedMealExists: !!detail,
+        }
+      }
+      if (!detail) return null
+      const plate = plateFromMeal(recipeRows(detail), detail.meal.servings, servingsLogged)
+      return {
+        plate,
+        recipeServings: detail.meal.servings,
+        rebuilt: true,
+        differsFromStored: Math.abs(plateMacros(plate).kcal - entry.kcal) > 0.5,
+        savedMealExists: true,
+      }
+    },
+
+    /**
+     * Change a logged meal's slot and, when `plate` differs from the stored one, what is on
+     * its plate. With `updateSavedMeal`, the plate changes are also carried over to the saved
+     * meal, scaled up to the whole recipe. Other entries never change.
+     */
+    async updateMealEntry(
+      id: string,
+      changes: { slot: Slot; plate?: LoggedMealItem[]; updateSavedMeal?: boolean },
+    ): Promise<void> {
+      await db.transaction('rw', [db.logEntries, db.meals, db.mealItems, db.foods, db.tags, db.tagGroups], async () => {
+        const entry = await db.logEntries.get(id)
+        if (!entry) return
+        const current = changes.plate ? await this.mealEntryPlate(id) : null
+        if (!changes.plate || !current || !plateChanged(current.plate, changes.plate)) {
+          await db.logEntries.update(id, { slot: changes.slot, ...touch() })
+          return
+        }
+        let plate = changes.plate
+        const detail = changes.updateSavedMeal && entry.mealId ? await this.getMeal(entry.mealId) : undefined
+        if (detail) {
+          const saved = detail.items.map((i) => ({ id: i.id, foodId: i.foodId, grams: i.grams }))
+          const factor = scaleFactor(current.recipeServings, entry.servings ?? 1)
+          const result = savedMealFromPlate(saved, current.plate, plate, factor)
+          await this.saveMeal(
+            { name: detail.meal.name, servings: detail.meal.servings, note: detail.meal.note, items: result.items },
+            detail.meal.id,
+          )
+          plate = result.plate
+        }
+        await db.logEntries.update(id, {
+          ...plateMacros(plate),
+          items: plate,
+          recipeServings: current.recipeServings,
+          plateEdited: true,
+          slot: changes.slot,
+          ...touch(),
+        })
       })
     },
 
@@ -319,6 +407,8 @@ export function createRepo(db: AppDB = defaultDb) {
           } else {
             await db.mealItems.add({
               ...fresh(),
+              // A caller-chosen id for a new row (a logged meal's plate links to it).
+              ...(item.id && { id: item.id }),
               mealId,
               foodId: item.foodId,
               grams: item.grams,
