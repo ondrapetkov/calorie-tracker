@@ -93,7 +93,7 @@ Requirements: Node.js 22.
 npm install
 npm run dev        # development server on http://localhost:5173
 npm test           # unit tests
-npm run e2e        # end-to-end tests in Chromium and WebKit (first: npx playwright install chromium webkit)
+npm run e2e        # end-to-end tests in Firefox and WebKit (first: npx playwright install firefox webkit)
 npm run build      # type-check and production build into dist/
 npm run preview    # serve the production build, with the production security headers
 ```
@@ -119,7 +119,7 @@ The app is a static site. On Cloudflare Pages:
 
 - **308 unit tests** (Vitest) cover the domain logic, Open Food Facts parsing and retries, the database layer, and the sync engine. Sync is tested with two simulated devices against a fake server that applies the same rules as the SQL: edits and deletes travelling both ways, conflicting edits, paging, cursor handling, failures and merges.
 - The Supabase schema and its row level security were tested on a local PostgreSQL 16 with stand-ins for Supabase's auth functions.
-- **End-to-end tests** (Playwright, `npm run e2e`) drive the real app at phone size in Chromium (Pixel 7) and WebKit (iPhone 15, standing in for iPhone Safari): logging a bundled food from search, editing and deleting an entry with undo, creating a custom food, building a meal and logging it, and logging weight. Each test starts with empty local data, and Open Food Facts is blocked so the results do not depend on the network.
+- **End-to-end tests** (Playwright, `npm run e2e`) drive the real app in desktop Firefox and in WebKit at iPhone 15 size (standing in for the Safari home-screen app): logging a bundled food from search, editing and deleting an entry with undo, creating a custom food, building a meal and logging it, and logging weight. Each test starts with empty local data, and Open Food Facts is blocked so the results do not depend on the network.
 - During development, features were also checked ad hoc in headless Chromium, including a fake camera feed for barcode scanning and a mocked Supabase for sync.
 
 ## Security and privacy
