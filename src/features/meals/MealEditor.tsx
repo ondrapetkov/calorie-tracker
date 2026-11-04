@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Field, Sheet, inputCls } from '../../components/ui'
+import { Button, ErrorNote, Field, Sheet, SheetDone, inputCls } from '../../components/ui'
 import { repo, type MealDetail } from '../../db/repo'
 import type { Food } from '../../db/schema'
 import { mealPerServing, mealTotal } from '../../domain/meals'
@@ -207,10 +207,8 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
             <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
 
-          {error && <p className="text-sm text-danger">{error}</p>}
-          <Button variant="primary" className="w-full" disabled={busy} onClick={save}>
-            Save meal
-          </Button>
+          <SheetDone disabled={busy} onClick={save} />
+          {error && <ErrorNote message={error} />}
         </div>
       </Sheet>
 

@@ -63,7 +63,6 @@ export function FoodsPanel() {
       {creating && (
         <Sheet title="New food" onClose={() => setCreating(false)}>
           <FoodForm
-            submitLabel="Save"
             onSubmit={async (input) => {
               await repo.saveFood(input)
               setCreating(false)
@@ -78,7 +77,6 @@ export function FoodsPanel() {
           </p>
           <FoodForm
             initial={editing}
-            submitLabel="Save"
             onSubmit={async (input) => {
               await repo.updateFood(editing.id, input)
               setEditing(null)

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Field, Sheet, inputCls } from '../../components/ui'
+import { Button, ErrorNote, Field, Sheet, SheetDone, inputCls } from '../../components/ui'
 import type { FoodDraft } from '../../api/openFoodFacts'
 import type { FoodInput } from '../../db/repo'
 import type { FoodSource } from '../../domain/nutrition'
@@ -15,12 +15,11 @@ import { TagEditorRow } from '../tags/TagEditorRow'
 interface Props {
   initial?: Partial<FoodDraft>
   notice?: string
-  submitLabel: string
   onSubmit: (input: FoodInput) => void | Promise<void>
   onDelete?: () => void
 }
 
-export function FoodForm({ initial = {}, notice, submitLabel, onSubmit, onDelete }: Props) {
+export function FoodForm({ initial = {}, notice, onSubmit, onDelete }: Props) {
   const [v, setV] = useState<FormValues>(() => toFormValues(initial))
   const [source, setSource] = useState<FoodSource>(initial.source ?? 'custom')
   const [tagIds, setTagIds] = useState<string[]>(initial.tagIds ?? [])
@@ -208,8 +207,8 @@ export function FoodForm({ initial = {}, notice, submitLabel, onSubmit, onDelete
         </Field>
       </div>
 
-      {error && <p className="text-sm text-danger">{error}</p>}
-      <Button variant="primary" className="w-full" disabled={busy} onClick={submit}>{submitLabel}</Button>
+      <SheetDone disabled={busy} onClick={submit} />
+      {error && <ErrorNote message={error} />}
       {onDelete && <Button variant="danger" className="w-full" onClick={onDelete}>Delete food</Button>}
 
       {scanning && (
