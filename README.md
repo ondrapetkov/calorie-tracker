@@ -50,7 +50,7 @@ This is my first project built with [Claude Code](https://claude.com/claude-code
 | Barcode decoding | `zxing-wasm` (ZXing-C++ compiled to WebAssembly) |
 | Food data | Open Food Facts API, plus a bundled list of basic foods |
 | Charts | Hand-written SVG (no chart library) |
-| Tests | Vitest and `fake-indexeddb` |
+| Tests | Vitest and `fake-indexeddb` (unit), Playwright (end to end) |
 | Hosting | Cloudflare Pages (static), security headers via `_headers` |
 
 ## Architecture
@@ -80,6 +80,7 @@ src/
   features/     Screens: diary, add-food, meals, foods, body (weight, water), targets, stats, settings
   platform/     iOS home-screen viewport fix
   sync/         Sync engine, sync manager, Supabase adapter and configuration
+e2e/            End-to-end tests (Playwright)
 docs/           Design, security review, Supabase setup and SQL, screenshots
 public/         Icons and security headers
 ```
@@ -92,6 +93,7 @@ Requirements: Node.js 22.
 npm install
 npm run dev        # development server on http://localhost:5173
 npm test           # unit tests
+npm run e2e        # end-to-end tests in Chromium and WebKit (first: npx playwright install chromium webkit)
 npm run build      # type-check and production build into dist/
 npm run preview    # serve the production build, with the production security headers
 ```
@@ -115,9 +117,10 @@ The app is a static site. On Cloudflare Pages:
 
 ## Testing
 
-- **293 unit tests** (Vitest) cover the domain logic, Open Food Facts parsing and retries, the database layer, and the sync engine. Sync is tested with two simulated devices against a fake server that applies the same rules as the SQL: edits and deletes travelling both ways, conflicting edits, paging, cursor handling, failures and merges.
+- **308 unit tests** (Vitest) cover the domain logic, Open Food Facts parsing and retries, the database layer, and the sync engine. Sync is tested with two simulated devices against a fake server that applies the same rules as the SQL: edits and deletes travelling both ways, conflicting edits, paging, cursor handling, failures and merges.
 - The Supabase schema and its row level security were tested on a local PostgreSQL 16 with stand-ins for Supabase's auth functions.
-- During development every feature was also checked end to end in headless Chromium with Playwright, at phone size and under the production Content Security Policy, including a fake camera feed for barcode scanning and a mocked Supabase for sync. Those scripts were run ad hoc and are not part of the repository.
+- **End-to-end tests** (Playwright, `npm run e2e`) drive the real app at phone size in Chromium (Pixel 7) and WebKit (iPhone 15, standing in for iPhone Safari): logging a bundled food from search, editing and deleting an entry with undo, creating a custom food, building a meal and logging it, and logging weight. Each test starts with empty local data, and Open Food Facts is blocked so the results do not depend on the network.
+- During development, features were also checked ad hoc in headless Chromium, including a fake camera feed for barcode scanning and a mocked Supabase for sync.
 
 ## Security and privacy
 
