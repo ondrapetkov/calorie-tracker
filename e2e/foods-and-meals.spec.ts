@@ -157,3 +157,16 @@ test('shows an error when saving a logged meal edit fails', async ({ page }) => 
   await expect(edit.getByRole('alert')).toContainText("Couldn't save")
   await expect(edit).toBeVisible()
 })
+
+test('the ingredient tag picker has Done in its header', async ({ page }) => {
+  await tab(page, 'Meals')
+  await page.getByRole('button', { name: 'New meal' }).click()
+  await sheet(page, 'New meal').getByRole('button', { name: '＋ Tag' }).click()
+  const picker = sheet(page, 'Ingredient tags')
+  await picker.getByRole('button', { name: /Chicken/ }).first().click()
+  await expect(picker.getByRole('button', { name: 'Done' })).toHaveCount(1)
+  await picker.locator('header').getByRole('button', { name: 'Done' }).click()
+  // The meal editor has an "Ingredient tags" section heading too; the picker's title is the h2.
+  await expect(page.getByRole('heading', { name: 'Ingredient tags', level: 2 })).toBeHidden()
+  await expect(sheet(page, 'New meal').getByRole('button', { name: /Chicken/ })).toBeVisible()
+})
