@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Sheet, inputCls } from '../../components/ui'
+import { Button, Sheet, SheetDone, inputCls } from '../../components/ui'
 import { repo, TagNameTakenError } from '../../db/repo'
 import { findTagByName, searchTags, type TagInfo } from '../../domain/tags'
 import { useVocabulary } from './useVocabulary'
@@ -174,9 +174,7 @@ export function TagPicker({ title, selected, onToggle, onClose }: Props) {
             ),
           )
         )}
-        <Button variant="primary" className="w-full" onClick={onClose}>
-          Done
-        </Button>
+        <SheetDone onClick={onClose} />
       </div>
     </Sheet>
   )
