@@ -56,7 +56,8 @@ function EditMealEntry({ entry, onClose, onDeleted }: Props) {
           initialSlot={entry.slot}
           submitLabel="Save"
           onSubmit={async (s, slot) => {
-            await repo.updateMealEntry(entry.id, { servings: s, slot })
+            void s // servings are no longer editable here; replaced by EditMealEntrySheet
+            await repo.updateMealEntry(entry.id, { slot })
             onClose()
           }}
           onDelete={async () => {

@@ -4,6 +4,7 @@ import { AppDB } from './schema'
 import { createRepo, TagNameTakenError, type FoodInput } from './repo'
 import { liveTagIds } from '../domain/tags'
 import { sumMacros } from '../domain/nutrition'
+import { plateMacros, type LoggedMealItem } from '../domain/loggedMeal'
 
 const oats: FoodInput = {
   source: 'custom',
@@ -152,18 +153,113 @@ describe('meals', () => {
     expect(after.items.some((i) => i.id === before.items[1].id)).toBe(false)
   })
 
-  it('logs a meal as one entry with a snapshot and rescales it when servings change', async () => {
-    const { mealId } = await setup()
+  it('logs a meal as one entry with a snapshot of its plate', async () => {
+    const { mealId, chicken, rice } = await setup()
     const entry = await repo.logMeal({ mealId, servings: 1, date: '2026-10-08', slot: 'dinner' })
     expect(entry.mealId).toBe(mealId)
     expect(entry.foodId).toBeNull()
     expect(entry.label).toBe('Kuře s rýží')
     expect(entry.kcal).toBeCloseTo(545)
-    await repo.updateMealEntry(entry.id, { servings: 2, slot: 'lunch' })
-    const [updated] = await repo.entriesForDate('2026-10-08')
-    expect(updated.kcal).toBeCloseTo(1090)
+    expect(entry.recipeServings).toBe(2)
+    const d = (await repo.getMeal(mealId))!
+    expect(entry.items!.map(({ id: _id, ...r }) => r)).toEqual([
+      { mealItemId: d.items[0].id, foodId: chicken.id, name: 'Kuřecí prsa', basis: 'g', per100: chicken.per100, grams: 150 },
+      { mealItemId: d.items[1].id, foodId: rice.id, name: 'Rýže', basis: 'g', per100: rice.per100, grams: 100 },
+    ])
+    expect(entry.kcal).toBeCloseTo(plateMacros(entry.items!).kcal)
+  })
+
+  const plateWith = (plate: LoggedMealItem[], foodId: string, grams: number) =>
+    plate.map((r) => (r.foodId === foodId ? { ...r, grams } : r))
+
+  it('edits only this entry by default', async () => {
+    const { mealId, rice } = await setup()
+    const entry = await repo.logMeal({ mealId, servings: 1, date: '2026-10-08', slot: 'dinner' })
+    const other = await repo.logMeal({ mealId, servings: 1, date: '2026-10-08', slot: 'dinner' })
+    const mealBefore = await repo.getMeal(mealId)
+    const { plate } = (await repo.mealEntryPlate(entry.id))!
+    await repo.updateMealEntry(entry.id, { slot: 'lunch', plate: plateWith(plate, rice.id, 150) })
+    const updated = (await db.logEntries.get(entry.id))!
+    expect(updated.kcal).toBeCloseTo(180 + 547.5)
+    expect(updated.carbs).toBeCloseTo(120)
     expect(updated.slot).toBe('lunch')
-    expect(updated.servings).toBe(2)
+    expect(updated.plateEdited).toBe(true)
+    expect(updated.items!.find((r) => r.foodId === rice.id)!.grams).toBe(150)
+    expect(updated.servings).toBe(1)
+    expect(await repo.getMeal(mealId)).toEqual(mealBefore)
+    expect(await db.logEntries.get(other.id)).toEqual(other)
+  })
+
+  it('carries plate edits over to the saved meal, scaled up, without duplicating on later edits', async () => {
+    const { mealId, rice, chicken } = await setup()
+    const oil = await repo.saveFood({ ...oats, name: 'Olej', per100: { ...oats.per100, kcal: 884 } })
+    const entry = await repo.logMeal({ mealId, servings: 1, date: '2026-10-08', slot: 'dinner' })
+    const p1 = (await repo.mealEntryPlate(entry.id))!.plate
+    const added: LoggedMealItem = {
+      id: crypto.randomUUID(), mealItemId: null, foodId: oil.id, name: 'Olej', basis: 'g', per100: oil.per100, grams: 5,
+    }
+    await repo.updateMealEntry(entry.id, {
+      slot: 'dinner', plate: [...plateWith(p1, rice.id, 150), added], updateSavedMeal: true,
+    })
+    const grams = async () => (await repo.getMeal(mealId))!.items.map((i) => [i.foodId, i.grams])
+    expect(await grams()).toEqual([[chicken.id, 300], [rice.id, 300], [oil.id, 10]])
+
+    // Second edit: same plate (nothing new), then a change to the row added in edit 1.
+    const p2 = (await repo.mealEntryPlate(entry.id))!.plate
+    await repo.updateMealEntry(entry.id, { slot: 'dinner', plate: p2, updateSavedMeal: true })
+    expect(await grams()).toEqual([[chicken.id, 300], [rice.id, 300], [oil.id, 10]])
+    await repo.updateMealEntry(entry.id, { slot: 'dinner', plate: plateWith(p2, oil.id, 8), updateSavedMeal: true })
+    expect(await grams()).toEqual([[chicken.id, 300], [rice.id, 300], [oil.id, 16]])
+    expect((await repo.getMeal(mealId))!.meal.servings).toBe(2)
+  })
+
+  it('rebuilds the plate of an old entry and keeps its totals on a slot-only edit', async () => {
+    const { mealId, chicken, rice } = await setup()
+    const entry = await repo.logMeal({ mealId, servings: 1, date: '2026-10-08', slot: 'dinner' })
+    await db.logEntries.update(entry.id, { items: undefined, recipeServings: undefined })
+    const d = (await repo.getMeal(mealId))!
+    await repo.saveMeal(
+      { name: d.meal.name, servings: 4, note: null, items: d.items.map((i) => ({ id: i.id, foodId: i.foodId, grams: i.grams })) },
+      mealId,
+    )
+    const p = (await repo.mealEntryPlate(entry.id))!
+    expect(p.rebuilt).toBe(true)
+    expect(p.recipeServings).toBe(4)
+    expect(p.savedMealExists).toBe(true)
+    expect(p.plate.map((r) => [r.foodId, r.grams])).toEqual([[chicken.id, 75], [rice.id, 50]])
+    expect(p.differsFromStored).toBe(true)
+
+    await repo.updateMealEntry(entry.id, { slot: 'lunch' })
+    const updated = (await db.logEntries.get(entry.id))!
+    expect(updated.kcal).toBe(entry.kcal)
+    expect(updated.slot).toBe('lunch')
+    expect(updated.items).toBeUndefined()
+  })
+
+  it('does not flag an old entry whose saved meal is unchanged', async () => {
+    const { mealId } = await setup()
+    const entry = await repo.logMeal({ mealId, servings: 1, date: '2026-10-08', slot: 'dinner' })
+    await db.logEntries.update(entry.id, { items: undefined, recipeServings: undefined })
+    const p = (await repo.mealEntryPlate(entry.id))!
+    expect(p.rebuilt).toBe(true)
+    expect(p.differsFromStored).toBe(false)
+  })
+
+  it('edits only the entry when the saved meal was deleted', async () => {
+    const { mealId, rice } = await setup()
+    const entry = await repo.logMeal({ mealId, servings: 1, date: '2026-10-08', slot: 'dinner' })
+    const old = await repo.logMeal({ mealId, servings: 1, date: '2026-10-08', slot: 'dinner' })
+    await db.logEntries.update(old.id, { items: undefined, recipeServings: undefined })
+    await repo.deleteMeal(mealId)
+
+    const p = (await repo.mealEntryPlate(entry.id))!
+    expect(p.savedMealExists).toBe(false)
+    expect(p.rebuilt).toBe(false)
+    await repo.updateMealEntry(entry.id, { slot: 'dinner', plate: plateWith(p.plate, rice.id, 150), updateSavedMeal: true })
+    expect((await db.logEntries.get(entry.id))!.kcal).toBeCloseTo(180 + 547.5)
+    expect(await db.mealItems.where('mealId').equals(mealId).filter((i) => i.deletedAt === null).count()).toBe(0)
+
+    expect(await repo.mealEntryPlate(old.id)).toBeNull()
   })
 
   it('keeps logged entries when the meal is deleted, and hides the meal', async () => {
