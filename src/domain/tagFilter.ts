@@ -41,12 +41,16 @@ export function toggleUntagged(f: TagFilter): TagFilter {
 }
 
 /**
- * Meals for the diary's add sheet under `slot`. Without a query: all of the slot's meals, then other
- * meals until there are five in total. With a query: every meal, the slot's first. Order is otherwise kept.
+ * Meals for the diary's add sheet under `slot`, as two lists: the slot's meals, and other meals.
+ * Without a query: all of the slot's meals, then other meals until there are five in total.
+ * With a query: every meal. Order is otherwise kept.
  */
-export function orderMealsForSlot<T extends { slots: Slot[] }>(meals: T[], slot: Slot, hasQuery: boolean): T[] {
-  const inSlot = meals.filter((m) => m.slots.includes(slot))
-  const others = meals.filter((m) => !m.slots.includes(slot))
-  if (hasQuery) return [...inSlot, ...others]
-  return [...inSlot, ...others.slice(0, Math.max(0, MEALS_WITHOUT_QUERY - inSlot.length))]
+export function splitMealsForSlot<T extends { slots: Slot[] }>(
+  meals: T[],
+  slot: Slot,
+  hasQuery: boolean,
+): { forSlot: T[]; others: T[] } {
+  const forSlot = meals.filter((m) => m.slots.includes(slot))
+  const rest = meals.filter((m) => !m.slots.includes(slot))
+  return { forSlot, others: hasQuery ? rest : rest.slice(0, Math.max(0, MEALS_WITHOUT_QUERY - forSlot.length)) }
 }
