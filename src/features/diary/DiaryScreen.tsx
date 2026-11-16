@@ -7,18 +7,21 @@ import type { LogEntry } from '../../db/schema'
 import { addDays, dayLabel, localDate } from '../../domain/dates'
 import { SLOTS, SLOT_LABELS, defaultSlot, sumMacros, type Slot } from '../../domain/nutrition'
 import { formatNumber } from '../../domain/numbers'
+import { canSaveSlotAsMeal } from '../../domain/loggedMeal'
 import { AddFoodFlow } from '../add-food/AddFoodFlow'
 import { WaterCard } from '../body/WaterCard'
 import { useTargets } from '../targets/useTargets'
 import { DayTotals } from './DayTotals'
 import { CalendarSheet } from './CalendarSheet'
 import { EditEntrySheet } from './EditEntrySheet'
+import { SaveAsMealSheet } from './SaveAsMealSheet'
 
 export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
   const [date, setDate] = useState(localDate)
   const [adding, setAdding] = useState<Slot | null>(null)
   const [editing, setEditing] = useState<LogEntry | null>(null)
   const [calendarOpen, setCalendarOpen] = useState(false)
+  const [savingSlot, setSavingSlot] = useState<LogEntry[] | null>(null)
   const [showToast, toastNode] = useToast({ raised: true })
 
   // Undefined while the first query runs, so we do not flash an empty day ("0 kcal") on every tab switch.
@@ -27,6 +30,10 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
   const loading = loadedEntries === undefined || targetsLoading
   const entries = loadedEntries ?? []
   const totals = sumMacros(entries)
+  const foodIds = [...new Set(entries.flatMap((e) => (e.foodId ? [e.foodId] : [])))]
+  // Foods deleted since they were logged can't go into a saved meal.
+  const liveFoodIds = useLiveQuery(() => repo.liveFoodIds(foodIds), [foodIds.join()], new Set<string>())
+  const savedAsMeal = (name: string) => showToast(`Saved as meal ${name}`)
 
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 pb-28 pt-[calc(env(safe-area-inset-top)+1rem)]">
@@ -101,6 +108,13 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
                 <div className="text-sm font-medium">{formatNumber(e.kcal)}</div>
               </button>
             ))}
+            {canSaveSlotAsMeal(rows, liveFoodIds) && (
+              <div className="mt-2 border-t border-line pt-2 text-center">
+                <Button variant="ghost" className="px-3 py-1 text-sm" onClick={() => setSavingSlot(rows)}>
+                  Save as meal
+                </Button>
+              </div>
+            )}
           </Card>
         )
       })}
@@ -139,6 +153,18 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
           onDeleted={(entry) =>
             showToast('Entry deleted', () => void repo.restoreEntry(entry.id))
           }
+          onSavedAsMeal={savedAsMeal}
+        />
+      )}
+      {savingSlot && (
+        <SaveAsMealSheet
+          entries={savingSlot}
+          initialName=""
+          onClose={() => setSavingSlot(null)}
+          onSaved={(name) => {
+            setSavingSlot(null)
+            savedAsMeal(name)
+          }}
         />
       )}
     </div>
