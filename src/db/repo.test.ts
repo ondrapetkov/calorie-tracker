@@ -308,6 +308,74 @@ describe('meals', () => {
   })
 })
 
+describe('save as meal', () => {
+  async function logged() {
+    const chicken = await repo.saveFood({ ...oats, name: 'Kuřecí prsa', per100: { ...oats.per100, kcal: 120 } })
+    const rice = await repo.saveFood({ ...oats, name: 'Rýže', per100: { ...oats.per100, kcal: 365 } })
+    const a = await repo.logFood({ food: chicken, grams: 150, date: '2026-11-16', slot: 'dinner' })
+    const b = await repo.logFood({ food: rice, grams: 100, date: '2026-11-16', slot: 'dinner' })
+    return { chicken, rice, a, b }
+  }
+
+  it("replaces a slot's foods with one meal entry and keeps the totals", async () => {
+    const { chicken, rice, a, b } = await logged()
+    await repo.updateFood(chicken.id, { ...chicken, per100: { ...chicken.per100, kcal: 999 } })
+    const { mealId, entry } = await repo.saveEntriesAsMeal({ entryIds: [b.id, a.id], name: '  Večeře ' })
+
+    const day = await repo.entriesForDate('2026-11-16')
+    expect(day).toHaveLength(1)
+    expect(day[0].id).toBe(entry.id)
+    expect(entry).toMatchObject({ mealId, foodId: null, servings: 1, recipeServings: 1, slot: 'dinner', label: 'Večeře' })
+    expect(entry.kcal).toBeCloseTo(a.kcal + b.kcal)
+    expect(entry.loggedAt).toBe(a.loggedAt)
+
+    const meal = (await repo.getMeal(mealId))!
+    expect(meal.meal).toMatchObject({ name: 'Večeře', servings: 1 })
+    expect(meal.slots).toEqual(['dinner'])
+    expect(meal.items.map((i) => [i.foodId, i.grams])).toEqual([
+      [chicken.id, 150],
+      [rice.id, 100],
+    ])
+    expect(entry.items!.map((r) => r.mealItemId)).toEqual(meal.items.map((i) => i.id))
+  })
+
+  it("the saved meal's plate can be edited and carried over", async () => {
+    const { rice, a, b } = await logged()
+    const { mealId, entry } = await repo.saveEntriesAsMeal({ entryIds: [a.id, b.id], name: 'Večeře' })
+    const plate = entry.items!.map((r) => (r.foodId === rice.id ? { ...r, grams: 200 } : r))
+    await repo.updateMealEntry(entry.id, { slot: 'dinner', plate, updateSavedMeal: true })
+    const meal = (await repo.getMeal(mealId))!
+    expect(meal.items).toHaveLength(2)
+    expect(meal.items.find((i) => i.foodId === rice.id)!.grams).toBe(200)
+  })
+
+  it('refuses entries from different slots, meal entries and deleted foods, writing nothing', async () => {
+    const { chicken, a, b } = await logged()
+    const lunch = await repo.logFood({ food: chicken, grams: 50, date: '2026-11-16', slot: 'lunch' })
+    const { mealId } = await repo.saveEntriesAsMeal({ entryIds: [lunch.id], name: 'Oběd' })
+    const mealEntry = (await repo.entriesForDate('2026-11-16')).find((e) => e.mealId === mealId)!
+    const mealsBefore = await db.meals.count()
+    const liveBefore = (await repo.entriesForDate('2026-11-16')).length
+
+    await expect(repo.saveEntriesAsMeal({ entryIds: [a.id, mealEntry.id], name: 'X' })).rejects.toThrow()
+    await expect(repo.saveEntriesAsMeal({ entryIds: [a.id, b.id], name: '   ' })).rejects.toThrow()
+    const other = await repo.logFood({ food: chicken, grams: 50, date: '2026-11-16', slot: 'snack' })
+    await expect(repo.saveEntriesAsMeal({ entryIds: [a.id, other.id], name: 'X' })).rejects.toThrow()
+    await repo.deleteFood(chicken.id)
+    await expect(repo.saveEntriesAsMeal({ entryIds: [a.id, b.id], name: 'X' })).rejects.toThrow()
+
+    expect(await db.meals.count()).toBe(mealsBefore)
+    expect(await db.mealItems.where('mealId').notEqual(mealId).count()).toBe(0)
+    expect((await repo.entriesForDate('2026-11-16')).length).toBe(liveBefore + 1)
+  })
+
+  it('lists only live food ids', async () => {
+    const { chicken, rice } = await logged()
+    await repo.deleteFood(rice.id)
+    expect(await repo.liveFoodIds([chicken.id, rice.id, 'missing'])).toEqual(new Set([chicken.id]))
+  })
+})
+
 describe('profile and weight', () => {
   const profile = {
     sex: 'male' as const,

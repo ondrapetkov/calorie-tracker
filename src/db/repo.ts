@@ -16,6 +16,7 @@ import { mealPerServing, mealTotal, type MealIngredient } from '../domain/meals'
 import { multiplyMacros, scaleMacros, type Macros, type Slot } from '../domain/nutrition'
 import {
   plateChanged,
+  plateFromFoodEntries,
   plateFromMeal,
   plateMacros,
   savedMealFromPlate,
@@ -268,6 +269,64 @@ export function createRepo(db: AppDB = defaultDb) {
         .filter((e) => e.deletedAt === null)
         .toArray()
       return rows.sort((a, b) => a.loggedAt - b.loggedAt)
+    },
+
+    /**
+     * Turn logged foods into a saved meal (servings 1, tagged with their slot) and replace them in
+     * the diary with one entry of that meal. The plate keeps each entry's own nutrition, so the day's
+     * totals don't change. Throws, writing nothing, unless every entry is a live food entry of one
+     * day and slot whose food still exists, and the name isn't blank.
+     */
+    async saveEntriesAsMeal(params: { entryIds: string[]; name: string }): Promise<{ mealId: string; entry: LogEntry }> {
+      const name = params.name.trim()
+      if (!name) throw new Error('A meal needs a name')
+      return db.transaction('rw', [db.logEntries, db.meals, db.mealItems, db.foods], async () => {
+        const found = await db.logEntries.bulkGet(params.entryIds)
+        const entries = found
+          .filter((e): e is LogEntry => !!e && e.deletedAt === null)
+          .sort((a, b) => a.loggedAt - b.loggedAt)
+        if (entries.length === 0 || entries.length !== params.entryIds.length) throw new Error('Entry not found')
+        const { date, slot } = entries[0]
+        if (entries.some((e) => e.date !== date || e.slot !== slot)) throw new Error('Entries are from different slots')
+        if (entries.some((e) => e.mealId !== null || e.foodId === null)) throw new Error('Only foods can be saved as a meal')
+        const foodIds = entries.map((e) => e.foodId!)
+        if ((await this.liveFoodIds(foodIds)).size !== new Set(foodIds).size) throw new Error('A food no longer exists')
+
+        const plate = plateFromFoodEntries(entries, () => crypto.randomUUID())
+        const mealId = await this.saveMeal({
+          name,
+          servings: 1,
+          note: null,
+          slots: [slot],
+          items: plate.map((r) => ({ id: r.mealItemId!, foodId: r.foodId, grams: r.grams })),
+        })
+        const now = Date.now()
+        for (const e of entries) await db.logEntries.update(e.id, { deletedAt: now, ...touch() })
+        const entry: LogEntry = {
+          ...fresh(),
+          ...plateMacros(plate),
+          date,
+          slot,
+          foodId: null,
+          mealId,
+          grams: null,
+          unit: 'g',
+          servings: 1,
+          label: name,
+          // Where the first of the replaced foods was, so the meal keeps its place in the slot.
+          loggedAt: entries[0].loggedAt,
+          items: plate,
+          recipeServings: 1,
+        }
+        await db.logEntries.add(entry)
+        return { mealId, entry }
+      })
+    },
+
+    /** The ids among `ids` of foods that exist and aren't deleted. */
+    async liveFoodIds(ids: string[]): Promise<Set<string>> {
+      const foods = await db.foods.bulkGet(ids)
+      return new Set(foods.filter((f): f is Food => !!f && f.deletedAt === null).map((f) => f.id))
     },
 
     /** Log `servings` portions of a saved meal. The plate snapshot comes from the ingredients as they are now. */
