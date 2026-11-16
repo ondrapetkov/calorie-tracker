@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test'
 import { expect, logFood, pickFood, sheet, tab, test } from './helpers'
 
 const CHICKEN = 'Kuřecí prsa bez kůže, syrová' // 120 kcal per 100 g
@@ -16,7 +17,7 @@ test('edits an entry amount, then deletes it and undoes the delete', async ({ pa
 
   await entry.click()
   await page.getByLabel(/Amount \(g\)/).fill('250')
-  await page.getByRole('button', { name: 'Save' }).click()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(entry).toContainText('250 g')
   await expect(entry).toContainText('300')
 
@@ -55,4 +56,61 @@ test('adding to a slot lists that slot\'s meals first, then other meals, then re
   await expect(page.getByRole('region', { name: 'For lunch' })).not.toContainText('Večerní salát')
   await expect(page.getByRole('region', { name: 'Other meals' })).toContainText('Večerní salát')
   await expect(page.getByRole('region', { name: 'Recent foods' })).toContainText(CHICKEN)
+})
+
+const RICE = 'Rýže bílá, vařená' // 130 kcal per 100 g
+
+/** The diary card of a slot, by its heading. */
+const slotCard = (page: Page, name: string) =>
+  page.locator('.rounded-xl').filter({ has: page.getByRole('heading', { name, exact: true }) })
+
+async function logToSlot(page: Page, slotName: string, query: string, name: string, grams: number) {
+  await slotCard(page, slotName).getByRole('button', { name: '+ Add' }).click()
+  await pickFood(page, query, name)
+  await page.getByLabel(/Amount \(g\)/).fill(String(grams))
+  await page.getByRole('button', { name: 'Add to diary' }).click()
+  await expect(page.getByRole('heading', { name: 'Amount' })).toBeHidden()
+}
+
+test('saves a slot of foods as a meal that replaces them', async ({ page }) => {
+  await logToSlot(page, 'Dinner', 'kureci prsa', CHICKEN, 150)
+  await logToSlot(page, 'Dinner', 'ryze varena', RICE, 200)
+  const dinner = slotCard(page, 'Dinner')
+  await expect(dinner).toContainText('440 kcal')
+
+  await dinner.getByRole('button', { name: 'Save as meal' }).click()
+  const save = sheet(page, 'Save as meal')
+  await expect(save).toContainText(CHICKEN)
+  await expect(save).toContainText(RICE)
+  await expect(save.getByRole('button', { name: 'Done' })).toBeDisabled()
+  await save.getByLabel('Name').fill('Rychlá večeře')
+  await save.getByRole('button', { name: 'Done' }).click()
+  await expect(save).toBeHidden()
+
+  await expect(page.getByRole('status')).toContainText('Saved as meal Rychlá večeře')
+  const entry = dinner.getByRole('button', { name: /Rychlá večeře/ })
+  await expect(entry).toContainText('1 × meal')
+  await expect(dinner).not.toContainText(CHICKEN)
+  await expect(dinner).toContainText('440 kcal')
+  await expect(dinner.getByRole('button', { name: 'Save as meal' })).toBeHidden()
+
+  await dinner.getByRole('button', { name: '+ Add' }).click()
+  await expect(page.getByRole('region', { name: 'For dinner' })).toContainText('Rychlá večeře')
+})
+
+test('saves a single logged food as a meal from Edit entry', async ({ page }) => {
+  await logToSlot(page, 'Snacks', 'kureci prsa', CHICKEN, 100)
+  const snack = slotCard(page, 'Snacks')
+  // One food: the button is in Edit entry, not on the slot.
+  await expect(snack.getByRole('button', { name: 'Save as meal' })).toBeHidden()
+
+  await snack.getByRole('button', { name: new RegExp(CHICKEN) }).click()
+  await sheet(page, 'Edit entry').getByRole('button', { name: 'Save as meal' }).click()
+  const save = sheet(page, 'Save as meal')
+  await expect(save.getByLabel('Name')).toHaveValue(CHICKEN)
+  await save.getByRole('button', { name: 'Done' }).click()
+
+  await expect(save).toBeHidden()
+  await expect(page.getByRole('heading', { name: 'Edit entry' })).toBeHidden()
+  await expect(snack.getByRole('button', { name: new RegExp(CHICKEN) })).toContainText('1 × meal')
 })
