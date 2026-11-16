@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  canSaveSlotAsMeal,
   plateChanged,
+  plateFromFoodEntries,
   plateFromMeal,
   plateMacros,
   savedMealFromPlate,
@@ -144,5 +146,44 @@ describe('savedMealFromPlate', () => {
   it('leaves out an unchanged row whose saved item is gone', () => {
     const { items } = savedMealFromPlate(saved.slice(1), before, before, 4)
     expect(items).toEqual([{ id: 'mi-chicken', foodId: 'f-chicken', grams: 400 }])
+  })
+})
+
+describe('plate from food entries', () => {
+  const ids = () => {
+    let n = 0
+    return () => `id-${++n}`
+  }
+  const m = (kcal: number): Macros => ({ kcal, protein: 0, carbs: 0, fat: 0, fiber: null, sugar: null, salt: null })
+
+  it('builds a plate from food entries using their own snapshot', () => {
+    const plate = plateFromFoodEntries(
+      [
+        { ...m(180), foodId: 'f-chicken', grams: 150, unit: 'g', label: 'Chicken' },
+        { ...m(84), foodId: 'f-milk', grams: 200, unit: 'ml', label: 'Milk' },
+      ],
+      ids(),
+    )
+    expect(plate.map((r) => [r.id, r.mealItemId, r.foodId, r.name, r.basis, r.grams])).toEqual([
+      ['id-1', 'id-1', 'f-chicken', 'Chicken', 'g', 150],
+      ['id-2', 'id-2', 'f-milk', 'Milk', 'ml', 200],
+    ])
+    expect(plate[0].per100.kcal).toBeCloseTo(120)
+    expect(plate[1].per100.kcal).toBeCloseTo(42)
+    expect(plateMacros(plate).kcal).toBeCloseTo(264)
+  })
+
+  it("uses the entry's macros as per-100 for a zero amount", () => {
+    const [row] = plateFromFoodEntries([{ ...m(50), foodId: 'f', grams: 0, unit: 'g', label: 'X' }], ids())
+    expect(row.per100.kcal).toBe(50)
+  })
+
+  it('offers saving a slot only for two or more live foods and no meals', () => {
+    const live = new Set(['a', 'b'])
+    const food = (id: string) => ({ foodId: id, mealId: null })
+    expect(canSaveSlotAsMeal([food('a')], live)).toBe(false)
+    expect(canSaveSlotAsMeal([food('a'), food('b')], live)).toBe(true)
+    expect(canSaveSlotAsMeal([food('a'), { foodId: null, mealId: 'meal' }], live)).toBe(false)
+    expect(canSaveSlotAsMeal([food('a'), food('gone')], live)).toBe(false)
   })
 })

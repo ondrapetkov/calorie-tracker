@@ -1,5 +1,5 @@
 import { mealTotal } from './meals'
-import type { Macros } from './nutrition'
+import { multiplyMacros, type Macros } from './nutrition'
 
 /** One ingredient on the plate of a logged meal: a snapshot that keeps its own nutrition. */
 export interface LoggedMealItem {
@@ -41,6 +41,39 @@ export function plateFromMeal(
     per100: i.per100,
     grams: (i.grams * servingsLogged) / recipeServings,
   }))
+}
+
+/** A logged food, as far as saving it into a meal is concerned. */
+export type FoodEntryLike = Macros & { foodId: string | null; grams: number | null; unit: 'g' | 'ml'; label: string }
+
+/**
+ * The plate for a meal made from logged foods, one row per entry at its logged amount. Nutrition
+ * comes from each entry's own snapshot, so the plate adds up to exactly what was logged.
+ * `newId` gives each row the id of the saved-meal item it will become.
+ */
+export function plateFromFoodEntries(entries: FoodEntryLike[], newId: () => string): LoggedMealItem[] {
+  return entries.map((e) => {
+    const grams = e.grams ?? 0
+    const id = newId()
+    return {
+      id,
+      mealItemId: id,
+      foodId: e.foodId ?? '',
+      name: e.label,
+      basis: e.unit,
+      // Same rule as editing a food entry: with no amount, the entry's macros stand in for per-100.
+      per100: multiplyMacros(e, grams > 0 ? 100 / grams : 1),
+      grams,
+    }
+  })
+}
+
+/** Whether a diary slot's rows can be saved as one meal: two or more foods that still exist, and no meals. */
+export function canSaveSlotAsMeal(
+  rows: { foodId: string | null; mealId: string | null }[],
+  liveFoodIds: Set<string>,
+): boolean {
+  return rows.length >= 2 && rows.every((r) => r.mealId === null && r.foodId !== null && liveFoodIds.has(r.foodId))
 }
 
 /** What the plate adds up to. */
