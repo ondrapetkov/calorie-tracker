@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button, Field, inputCls } from '../../components/ui'
 import { SLOTS, SLOT_LABELS, scaleMacros, type Macros, type Slot } from '../../domain/nutrition'
 import { formatNumber, parseNumber } from '../../domain/numbers'
@@ -16,6 +16,8 @@ interface Props {
   hideSlot?: boolean
   onSubmit: (grams: number, slot: Slot) => void | Promise<void>
   onDelete?: () => void
+  /** More buttons, shown between the submit button and Delete. */
+  extraActions?: ReactNode
 }
 
 const QUICK = [50, 100, 150, 200]
@@ -104,6 +106,7 @@ export function AmountForm(props: Props) {
       <Button variant="primary" className="w-full" disabled={!valid || busy} onClick={submit}>
         {props.submitLabel}
       </Button>
+      {props.extraActions}
       {props.onDelete && (
         <Button variant="danger" className="w-full" onClick={props.onDelete}>
           Delete entry

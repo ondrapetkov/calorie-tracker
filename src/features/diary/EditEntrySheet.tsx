@@ -55,12 +55,14 @@ function EditFoodEntrySheet({ entry, onClose, onDeleted, onSavedAsMeal }: Props)
               onDeleted(entry)
               onClose()
             }}
+            extraActions={
+              foodExists && (
+                <Button className="w-full" onClick={() => setSavingAsMeal(true)}>
+                  Save as meal
+                </Button>
+              )
+            }
           />
-          {foodExists && (
-            <Button className="w-full" onClick={() => setSavingAsMeal(true)}>
-              Save as meal
-            </Button>
-          )}
         </div>
       </Sheet>
       {savingAsMeal && (

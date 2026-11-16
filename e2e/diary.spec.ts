@@ -105,7 +105,10 @@ test('saves a single logged food as a meal from Edit entry', async ({ page }) =>
   await expect(snack.getByRole('button', { name: 'Save as meal' })).toBeHidden()
 
   await snack.getByRole('button', { name: new RegExp(CHICKEN) }).click()
-  await sheet(page, 'Edit entry').getByRole('button', { name: 'Save as meal' }).click()
+  const edit = sheet(page, 'Edit entry')
+  // Save as meal sits above Delete entry.
+  await expect(edit.getByRole('button', { name: /^(Save as meal|Delete entry)$/ })).toHaveText(['Save as meal', 'Delete entry'])
+  await edit.getByRole('button', { name: 'Save as meal' }).click()
   const save = sheet(page, 'Save as meal')
   await expect(save.getByLabel('Name')).toHaveValue(CHICKEN)
   await save.getByRole('button', { name: 'Done' }).click()
