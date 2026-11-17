@@ -39,3 +39,31 @@ export function gramsFromText(text: string, serving: Serving | null): number | n
 export function sameServing(a: Serving | null | undefined, b: Serving | null | undefined): boolean {
   return (a?.grams ?? null) === (b?.grams ?? null) && (a?.label ?? null) === (b?.label ?? null)
 }
+
+/**
+ * An amount box: its text, whether it is in servings, and the exact grams it stood for when it was
+ * last set from grams (opened, added or switched). While the text and serving are unchanged those
+ * grams are used, so a rounded count ("3.33") never turns 100 g into 99.9 g.
+ */
+export interface AmountState {
+  text: string
+  serving: Serving | null
+  exact: { text: string; serving: Serving | null; grams: number } | null
+}
+
+export function amountState(grams: number, serving: Serving | null): AmountState {
+  const text = amountText(grams, serving)
+  return { text, serving, exact: { text, serving, grams } }
+}
+
+/** The grams the box stands for; null unless it is a number above 0. */
+export function stateGrams(s: AmountState): number | null {
+  if (s.exact && s.text === s.exact.text && sameServing(s.serving, s.exact.serving)) return s.exact.grams
+  return gramsFromText(s.text, s.serving)
+}
+
+/** Show the same amount in servings of `next`, or in grams (null). An unreadable amount switches as it is. */
+export function switchServing(s: AmountState, next: Serving | null): AmountState {
+  const grams = stateGrams(s)
+  return grams === null ? { ...s, serving: next } : amountState(grams, next)
+}

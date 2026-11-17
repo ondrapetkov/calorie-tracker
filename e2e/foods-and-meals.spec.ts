@@ -223,3 +223,22 @@ test('meal ingredients added in servings stay in servings', async ({ page }) => 
   await entry.click()
   await expect(amount(edit)).toHaveValue('150')
 })
+
+test('switching an ingredient between grams and servings keeps the amount', async ({ page }) => {
+  const white = 'Vaječný bílek' // 1 serving = 33 g
+  await tab(page, 'Meals')
+  await page.getByRole('button', { name: 'New meal' }).click()
+  const editor = sheet(page, 'New meal')
+  await editor.getByRole('button', { name: '+ Add ingredient' }).click()
+  await pickFood(page, 'bilek', white)
+  await page.getByRole('button', { name: 'Grams' }).click()
+  await page.getByLabel(/Amount \(g\)/).fill('90')
+  await page.getByRole('button', { name: 'Add to meal' }).click()
+
+  const amount = editor.getByLabel(`Amount of ${white}`)
+  await expect(amount).toHaveValue('90')
+  await editor.getByRole('button', { name: `Switch ${white} to servings` }).click()
+  await expect(amount).toHaveValue('2.73')
+  await editor.getByRole('button', { name: `Switch ${white} to grams` }).click()
+  await expect(amount).toHaveValue('90')
+})

@@ -10,7 +10,7 @@ import { AddFoodFlow } from '../add-food/AddFoodFlow'
 import { MacroPreview } from '../add-food/MacroPreview'
 import { rememberChoice, rememberedChoice, type MealUpdateChoice } from './mealUpdateChoice'
 import { UpdateSavedMealDialog } from './UpdateSavedMealDialog'
-import { amountText, gramsFromText, sameServing, type Serving } from '../../domain/servings'
+import { amountState, stateGrams, type AmountState, type Serving } from '../../domain/servings'
 import { IngredientAmount } from '../meals/IngredientAmount'
 
 interface Props {
@@ -21,19 +21,12 @@ interface Props {
 
 interface Row {
   item: LoggedMealItem
-  /** What the amount box shows when the sheet opens; unchanged text keeps the exact stored amount. */
-  initial: string
-  /** The amount box: servings when `serving` is set, otherwise g/ml. */
-  text: string
-  serving: Serving | null
+  amount: AmountState
 }
 
 const shown = (g: number) => String(Math.round(g * 10) / 10)
 const valid = (n: number | null): n is number => n !== null && !Number.isNaN(n) && n > 0
-const rowOf = (item: LoggedMealItem): Row => {
-  const text = amountText(item.grams, item.serving ?? null)
-  return { item, initial: text, text, serving: item.serving ?? null }
-}
+const rowOf = (item: LoggedMealItem): Row => ({ item, amount: amountState(item.grams, item.serving ?? null) })
 const sizeOf = (food: Food | undefined): Serving | null =>
   food?.defaultServingG ? { grams: food.defaultServingG, label: food.defaultServingLabel } : null
 
@@ -83,10 +76,7 @@ export function EditMealEntrySheet({ entry, onClose, onDeleted }: Props) {
     }
   }, [entry.id])
 
-  const parsed = rows.map((r) => ({
-    ...r,
-    n: r.text === r.initial && sameServing(r.serving, r.item.serving) ? r.item.grams : gramsFromText(r.text, r.serving),
-  }))
+  const parsed = rows.map((r) => ({ ...r, n: stateGrams(r.amount), serving: r.amount.serving }))
   const plate: LoggedMealItem[] = parsed.map(({ item: { serving: _old, ...item }, n, serving }) => ({
     ...item,
     grams: valid(n) ? n : 0,
@@ -191,11 +181,10 @@ export function EditMealEntrySheet({ entry, onClose, onDeleted }: Props) {
                       <IngredientAmount
                         name={r.item.name}
                         basis={r.item.basis}
-                        text={r.text}
-                        serving={r.serving}
-                        servingSize={r.serving ?? sizeOf(foods.get(r.item.foodId))}
-                        onChange={(text, serving) =>
-                          setRows((all) => all.map((x) => (x.item.id === r.item.id ? { ...x, text, serving } : x)))
+                        amount={r.amount}
+                        servingSize={r.amount.serving ?? sizeOf(foods.get(r.item.foodId))}
+                        onChange={(amount) =>
+                          setRows((all) => all.map((x) => (x.item.id === r.item.id ? { ...x, amount } : x)))
                         }
                       />
                       <button

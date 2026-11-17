@@ -1,8 +1,16 @@
-import { useId, useRef, useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { Button, Field, inputCls } from '../../components/ui'
 import { SLOTS, SLOT_LABELS, scaleMacros, type Macros, type Slot } from '../../domain/nutrition'
 import { formatNumber, parseNumber } from '../../domain/numbers'
-import { formatCount, stepCount, type Serving } from '../../domain/servings'
+import {
+  amountState,
+  formatCount,
+  stateGrams,
+  stepCount,
+  switchServing,
+  type AmountState,
+  type Serving,
+} from '../../domain/servings'
 import { MacroPreview } from './MacroPreview'
 
 interface Props {
@@ -28,41 +36,42 @@ const QUICK = [50, 100, 150, 200]
 
 export function AmountForm(props: Props) {
   const { per100, unit, servingG, servingLabel } = props
+  const size: Serving | null = servingG !== null ? { grams: servingG, label: servingLabel } : null
   const startsInServings =
-    servingG !== null && (props.initialMode ? props.initialMode === 'serving' : props.initialGrams === undefined)
-  const [mode, setMode] = useState<'amount' | 'serving'>(startsInServings ? 'serving' : 'amount')
-  const [value, setValue] = useState(() => {
-    if (props.initialGrams === undefined) return startsInServings ? '1' : '100'
-    return startsInServings && servingG ? formatCount(props.initialGrams / servingG) : String(props.initialGrams)
+    size !== null && (props.initialMode ? props.initialMode === 'serving' : props.initialGrams === undefined)
+  // The serving lives in the state, so the amount stays right even if the food's serving size changes meanwhile.
+  const [amount, setAmount] = useState<AmountState>(() => {
+    const serving = startsInServings ? size : null
+    if (props.initialGrams === undefined) return { text: serving ? '1' : '100', serving, exact: null }
+    return amountState(props.initialGrams, serving)
   })
+  const mode = amount.serving ? 'serving' : 'amount'
+  const value = amount.text
+  const setValue = (text: string) => setAmount((a) => ({ ...a, text }))
   const inputId = useId()
-  const initialValue = useRef(value)
-  const initialMode = useRef(mode)
   const [slot, setSlot] = useState<Slot>(props.initialSlot)
   const [busy, setBusy] = useState(false)
 
-  const parsed = parseNumber(value)
-  const valid = parsed !== null && !Number.isNaN(parsed) && parsed > 0
-  // Unchanged text keeps the exact amount it was opened with (a rounded count times the serving could drift).
-  const untouched = props.initialGrams !== undefined && value === initialValue.current && mode === initialMode.current
-  const grams = !valid ? 0 : untouched ? props.initialGrams! : mode === 'serving' ? parsed * (servingG ?? 0) : parsed
+  const exactGrams = stateGrams(amount)
+  const valid = exactGrams !== null
+  const grams = exactGrams ?? 0
   const m = scaleMacros(per100, grams)
 
+  // Carries the exact amount across, so looking at it the other way never changes it.
   const switchMode = (next: 'amount' | 'serving') => {
-    if (next === mode) return
-    // Carry the current amount across so toggling does not lose the number.
-    if (next === 'serving' && servingG) setValue(String(Math.round((grams / servingG) * 100) / 100 || 1))
-    else setValue(String(Math.round(grams * 10) / 10 || 100))
-    setMode(next)
+    if (next !== mode) setAmount((a) => switchServing(a, next === 'serving' ? size : null))
   }
 
-  const step = (delta: 1 | -1) => setValue(formatCount(stepCount(valid ? parsed : 1, delta)))
+  const step = (delta: 1 | -1) => {
+    const n = parseNumber(value)
+    setValue(formatCount(stepCount(n !== null && !Number.isNaN(n) && n > 0 ? n : 1, delta)))
+  }
 
   const submit = async () => {
     if (!valid || busy) return
     setBusy(true)
     try {
-      await props.onSubmit(grams, slot, mode === 'serving' && servingG ? { grams: servingG, label: servingLabel } : null)
+      await props.onSubmit(grams, slot, amount.serving)
     } finally {
       setBusy(false)
     }
@@ -106,7 +115,7 @@ export function AmountForm(props: Props) {
             </Button>
           )}
         </div>
-        {mode === 'serving' && servingG && (
+        {mode === 'serving' && (
           <span className="mt-1 block text-xs text-muted">
             {formatNumber(grams, 0)} {unit} in total
           </span>

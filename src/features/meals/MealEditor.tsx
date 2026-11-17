@@ -12,7 +12,7 @@ import { TagEditorRow } from '../tags/TagEditorRow'
 import { useVocabulary } from '../tags/useVocabulary'
 import { AddFoodFlow } from '../add-food/AddFoodFlow'
 import { MacroPreview } from '../add-food/MacroPreview'
-import { amountText, gramsFromText, sameServing, type Serving } from '../../domain/servings'
+import { amountState, stateGrams, type AmountState, type Serving } from '../../domain/servings'
 import { IngredientAmount } from './IngredientAmount'
 
 interface Row {
@@ -20,20 +20,12 @@ interface Row {
   /** Set for ingredients that already exist in the database. */
   id?: string
   food: Food
-  /** The amount box: servings when `serving` is set, otherwise g/ml. */
-  text: string
-  serving: Serving | null
-  /** As saved, for an existing ingredient: an untouched box keeps these exact grams. */
-  saved?: { text: string; serving: Serving | null; grams: number }
+  amount: AmountState
 }
 
 const sizeOf = (food: Food): Serving | null =>
   food.defaultServingG ? { grams: food.defaultServingG, label: food.defaultServingLabel } : null
 
-function rowGrams(r: Row): number | null {
-  if (r.saved && r.text === r.saved.text && sameServing(r.serving, r.saved.serving)) return r.saved.grams
-  return gramsFromText(r.text, r.serving)
-}
 
 interface Props {
   /** Present when editing an existing meal. */
@@ -54,14 +46,7 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
       detail?.items.flatMap((i) =>
         i.food
           ? [
-              {
-                key: newKey(),
-                id: i.id,
-                food: i.food,
-                text: amountText(i.grams, i.serving ?? null),
-                serving: i.serving ?? null,
-                saved: { text: amountText(i.grams, i.serving ?? null), serving: i.serving ?? null, grams: i.grams },
-              },
+              { key: newKey(), id: i.id, food: i.food, amount: amountState(i.grams, i.serving ?? null) },
             ]
           : [],
       ) ?? [],
@@ -82,7 +67,7 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
 
   const servingsN = parseNumber(servings)
   const servingsOk = servingsN !== null && !Number.isNaN(servingsN) && servingsN > 0
-  const parsedRows = rows.map((r) => ({ ...r, gramsN: rowGrams(r) }))
+  const parsedRows = rows.map((r) => ({ ...r, gramsN: stateGrams(r.amount) }))
   const rowsOk = parsedRows.length > 0 && parsedRows.every((r) => r.gramsN !== null)
 
   const ingredients = parsedRows.map((r) => ({
@@ -104,7 +89,7 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
         highlightTimer.current = setTimeout(() => setHighlightIds([]), 1500)
       }
     }
-    setRows((all) => [...all, { key: newKey(), food, text: amountText(grams, serving), serving }])
+    setRows((all) => [...all, { key: newKey(), food, amount: amountState(grams, serving) }])
   }
 
   const total = mealTotal(ingredients)
@@ -122,7 +107,7 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
           name: name.trim(),
           servings: servingsN,
           note: note.trim() || null,
-          items: parsedRows.map((r) => ({ id: r.id, foodId: r.food.id, grams: r.gramsN!, serving: r.serving })),
+          items: parsedRows.map((r) => ({ id: r.id, foodId: r.food.id, grams: r.gramsN!, serving: r.amount.serving })),
           slots,
           addedTagIds: tagState.addedTagIds,
           removedTagIds: tagState.removedTagIds,
@@ -177,18 +162,15 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
                     <div className="truncate">{r.food.name}</div>
                     <div className="text-xs text-muted">
                       {formatNumber(kcal)} kcal
-                      {r.serving && r.gramsN !== null && ` · ${formatNumber(r.gramsN)} ${r.food.basis}`}
+                      {r.amount.serving && r.gramsN !== null && ` · ${formatNumber(r.gramsN)} ${r.food.basis}`}
                     </div>
                   </div>
                   <IngredientAmount
                     name={r.food.name}
                     basis={r.food.basis}
-                    text={r.text}
-                    serving={r.serving}
-                    servingSize={r.serving ?? sizeOf(r.food)}
-                    onChange={(text, serving) =>
-                      setRows((all) => all.map((x) => (x.key === r.key ? { ...x, text, serving } : x)))
-                    }
+                    amount={r.amount}
+                    servingSize={r.amount.serving ?? sizeOf(r.food)}
+                    onChange={(amount) => setRows((all) => all.map((x) => (x.key === r.key ? { ...x, amount } : x)))}
                   />
                   <button
                     type="button"

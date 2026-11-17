@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { amountText, formatCount, gramsFromText, servingCount, stepCount, type Serving } from './servings'
+import {
+  amountState,
+  amountText,
+  formatCount,
+  gramsFromText,
+  servingCount,
+  stateGrams,
+  stepCount,
+  switchServing,
+  type Serving,
+} from './servings'
 
 const slice: Serving = { grams: 25, label: '1 slice' }
 
@@ -34,5 +44,40 @@ describe('servings', () => {
     expect(gramsFromText('150', null)).toBe(150)
     expect(gramsFromText('0', slice)).toBeNull()
     expect(gramsFromText('x', null)).toBeNull()
+  })
+})
+
+describe('amount state', () => {
+  const thirty: Serving = { grams: 30, label: '1 piece' }
+
+  it('keeps the exact grams while the text is untouched', () => {
+    const s = amountState(100, thirty)
+    expect(s.text).toBe('3.33')
+    expect(stateGrams(s)).toBe(100)
+    expect(stateGrams({ ...s, text: '4' })).toBe(120)
+    expect(stateGrams({ ...s, text: '' })).toBeNull()
+  })
+
+  it('switches between servings and grams without changing the amount', () => {
+    const toGrams = switchServing(amountState(100, thirty), null)
+    expect(toGrams.text).toBe('100')
+    expect(stateGrams(toGrams)).toBe(100)
+    const toServings = switchServing(amountState(100, null), thirty)
+    expect(toServings.text).toBe('3.33')
+    expect(stateGrams(toServings)).toBe(100)
+    const roundTrip = switchServing(switchServing(amountState(100, null), thirty), null)
+    expect(stateGrams(roundTrip)).toBe(100)
+    expect(stateGrams(switchServing(roundTrip, thirty))).toBe(100)
+  })
+
+  it('switches an unreadable amount as it is', () => {
+    const s = switchServing({ ...amountState(100, null), text: 'x' }, thirty)
+    expect(s.text).toBe('x')
+    expect(s.serving).toEqual(thirty)
+    expect(stateGrams(s)).toBeNull()
+  })
+
+  it('keeps the exact grams of a new amount entered in servings', () => {
+    expect(stateGrams(amountState(9.99, thirty))).toBe(9.99)
   })
 })
