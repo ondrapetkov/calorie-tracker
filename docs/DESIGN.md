@@ -107,7 +107,7 @@ All nutrition is normalised to per 100 g (or per 100 ml). A food is written to t
 
 **meal_item**
 
-`mealId`, `foodId`, `grams`, `sortOrder`. Separate rows (not an embedded array) so edits to one ingredient sync independently.
+`mealId`, `foodId`, `grams`, `sortOrder`, optional `serving` (as on log_entry). Separate rows (not an embedded array) so edits to one ingredient sync independently.
 
 **log_entry**
 
@@ -120,6 +120,7 @@ All nutrition is normalised to per 100 g (or per 100 ml). A food is written to t
 | `kcal`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, `salt` | Snapshot of what this entry contributes. The last three are nullable (unknown, not zero). |
 | `label` | Display name snapshot, so the diary still reads correctly if the food is deleted. |
 | `loggedAt` | Epoch ms, for ordering within a slot. |
+| `serving` | Optional, for a food: `{ grams, label }`, the serving the amount was entered in, as it was then. The diary shows and edits the amount as `grams / serving.grams` servings. Missing means it was entered in grams. Plate rows of a logged meal carry the same field. |
 
 **weight_entry**: `date`, `kg`, `measuredAt`. One entry per day is the norm; if there are several, the last one wins in charts.
 

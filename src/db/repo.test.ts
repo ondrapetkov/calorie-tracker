@@ -376,6 +376,64 @@ describe('save as meal', () => {
   })
 })
 
+describe('servings', () => {
+  const slice = { grams: 25, label: '1 slice' }
+  const breadInput: FoodInput = { ...oats, name: 'Chléb', per100: { ...oats.per100, kcal: 250 }, defaultServingG: 25, defaultServingLabel: '1 slice' }
+
+  it('stores the serving a food was logged with, and changes or clears it on edit', async () => {
+    const bread = await repo.saveFood(breadInput)
+    const e = await repo.logFood({ food: bread, grams: 100, date: '2026-11-17', slot: 'dinner', serving: slice })
+    expect(e.serving).toEqual(slice)
+    await repo.updateEntry(e.id, { grams: 150, slot: 'dinner', serving: slice })
+    let after = (await db.logEntries.get(e.id))!
+    expect(after.serving).toEqual(slice)
+    expect(after.kcal).toBeCloseTo(375)
+    await repo.updateEntry(e.id, { grams: 150, slot: 'dinner' })
+    expect((await db.logEntries.get(e.id))!.serving).toEqual(slice)
+    await repo.updateEntry(e.id, { grams: 150, slot: 'dinner', serving: null })
+    after = (await db.logEntries.get(e.id))!
+    expect(after.serving).toBeUndefined()
+    expect('serving' in after).toBe(false)
+  })
+
+  it('keeps ingredient servings and carries them onto a logged plate', async () => {
+    const bread = await repo.saveFood(breadInput)
+    const mealId = await repo.saveMeal({ name: 'Chlebíčky', servings: 2, note: null, items: [{ foodId: bread.id, grams: 100, serving: slice }] })
+    expect((await repo.getMeal(mealId))!.items[0].serving).toEqual(slice)
+    const entry = await repo.logMeal({ mealId, servings: 1, date: '2026-11-17', slot: 'dinner' })
+    expect(entry.items![0]).toMatchObject({ grams: 50, serving: slice })
+  })
+
+  it('removes an ingredient serving when the meal is saved without it', async () => {
+    const bread = await repo.saveFood(breadInput)
+    const mealId = await repo.saveMeal({ name: 'M', servings: 1, note: null, items: [{ foodId: bread.id, grams: 100, serving: slice }] })
+    const id = (await repo.getMeal(mealId))!.items[0].id
+    await repo.saveMeal({ name: 'M', servings: 1, note: null, items: [{ id, foodId: bread.id, grams: 100, serving: null }] }, mealId)
+    expect((await repo.getMeal(mealId))!.items[0].serving).toBeUndefined()
+  })
+
+  it('carries servings through save as meal', async () => {
+    const bread = await repo.saveFood(breadInput)
+    const butter = await repo.saveFood({ ...oats, name: 'Máslo' })
+    const a = await repo.logFood({ food: bread, grams: 100, date: '2026-11-17', slot: 'dinner', serving: slice })
+    const b = await repo.logFood({ food: butter, grams: 10, date: '2026-11-17', slot: 'dinner' })
+    const { mealId, entry } = await repo.saveEntriesAsMeal({ entryIds: [a.id, b.id], name: 'Chléb s máslem' })
+    expect(entry.items!.map((r) => r.serving)).toEqual([slice, undefined])
+    expect((await repo.getMeal(mealId))!.items.map((i) => i.serving)).toEqual([slice, undefined])
+  })
+
+  it("updates a saved ingredient's serving when only the plate row's mode changed", async () => {
+    const bread = await repo.saveFood(breadInput)
+    const mealId = await repo.saveMeal({ name: 'M', servings: 1, note: null, items: [{ foodId: bread.id, grams: 100 }] })
+    const entry = await repo.logMeal({ mealId, servings: 1, date: '2026-11-17', slot: 'dinner' })
+    const plate = entry.items!.map((r) => ({ ...r, serving: slice }))
+    await repo.updateMealEntry(entry.id, { slot: 'dinner', plate, updateSavedMeal: true })
+    const meal = (await repo.getMeal(mealId))!
+    expect(meal.items[0]).toMatchObject({ grams: 100, serving: slice })
+    expect((await db.logEntries.get(entry.id))!.items![0].serving).toEqual(slice)
+  })
+})
+
 describe('profile and weight', () => {
   const profile = {
     sex: 'male' as const,

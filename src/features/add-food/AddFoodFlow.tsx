@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { hasCoreNutrients, type FoodDraft } from '../../api/openFoodFacts'
 import { Sheet } from '../../components/ui'
+import type { Serving } from '../../domain/servings'
 import { repo, type FoodInput, type MealDetail } from '../../db/repo'
 import type { Food } from '../../db/schema'
 import type { Slot } from '../../domain/nutrition'
@@ -27,7 +28,7 @@ type Mode =
   /** Log to the diary. */
   | { kind: 'log'; date: string; slot: Slot; onLogged: (message: string) => void }
   /** Pick an ingredient and amount for a recipe. */
-  | { kind: 'pick'; onPicked: (food: Food, grams: number) => void; chooseTagId?: string }
+  | { kind: 'pick'; onPicked: (food: Food, grams: number, serving: Serving | null) => void; chooseTagId?: string }
 
 interface Props {
   mode: Mode
@@ -65,7 +66,7 @@ export function AddFoodFlow({ mode, onClose }: Props) {
     replace({ kind: 'amount', item: food })
   }
 
-  const confirm = async (item: Item, grams: number, chosenSlot: Slot, tagIds?: string[]) => {
+  const confirm = async (item: Item, grams: number, chosenSlot: Slot, serving: Serving | null, tagIds?: string[]) => {
     let food: Food
     if (isFood(item)) {
       food = item
@@ -80,10 +81,10 @@ export function AddFoodFlow({ mode, onClose }: Props) {
       food = (await repo.addTagToFood(food.id, mode.chooseTagId)) ?? food
     }
     if (mode.kind === 'log') {
-      await repo.logFood({ food, grams, date: mode.date, slot: chosenSlot })
+      await repo.logFood({ food, grams, date: mode.date, slot: chosenSlot, serving })
       mode.onLogged(`Added ${food.name}`)
     } else {
-      mode.onPicked(food, grams)
+      mode.onPicked(food, grams, serving)
     }
     onClose()
   }
@@ -175,7 +176,7 @@ export function AddFoodFlow({ mode, onClose }: Props) {
             initialSlot={slot}
             hideSlot={mode.kind === 'pick'}
             submitLabel={mode.kind === 'pick' ? 'Add to meal' : 'Add to diary'}
-            onSubmit={(grams, chosenSlot) => confirm(view.item, grams, chosenSlot, view.tagIds)}
+            onSubmit={(grams, chosenSlot, serving) => confirm(view.item, grams, chosenSlot, serving, view.tagIds)}
           />
         </div>
       )}

@@ -12,14 +12,20 @@ import { TagEditorRow } from '../tags/TagEditorRow'
 import { useVocabulary } from '../tags/useVocabulary'
 import { AddFoodFlow } from '../add-food/AddFoodFlow'
 import { MacroPreview } from '../add-food/MacroPreview'
+import { amountState, stateGrams, type AmountState, type Serving } from '../../domain/servings'
+import { IngredientAmount } from './IngredientAmount'
 
 interface Row {
   key: string
   /** Set for ingredients that already exist in the database. */
   id?: string
   food: Food
-  grams: string
+  amount: AmountState
 }
+
+const sizeOf = (food: Food): Serving | null =>
+  food.defaultServingG ? { grams: food.defaultServingG, label: food.defaultServingLabel } : null
+
 
 interface Props {
   /** Present when editing an existing meal. */
@@ -38,7 +44,11 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
   const [rows, setRows] = useState<Row[]>(
     () =>
       detail?.items.flatMap((i) =>
-        i.food ? [{ key: newKey(), id: i.id, food: i.food, grams: String(i.grams) }] : [],
+        i.food
+          ? [
+              { key: newKey(), id: i.id, food: i.food, amount: amountState(i.grams, i.serving ?? null) },
+            ]
+          : [],
       ) ?? [],
   )
   const [slots, setSlots] = useState<Slot[]>(detail?.slots ?? [])
@@ -57,19 +67,18 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
 
   const servingsN = parseNumber(servings)
   const servingsOk = servingsN !== null && !Number.isNaN(servingsN) && servingsN > 0
-  const parsedRows = rows.map((r) => ({ ...r, gramsN: parseNumber(r.grams) }))
-  const rowsOk =
-    parsedRows.length > 0 && parsedRows.every((r) => r.gramsN !== null && !Number.isNaN(r.gramsN) && r.gramsN > 0)
+  const parsedRows = rows.map((r) => ({ ...r, gramsN: stateGrams(r.amount) }))
+  const rowsOk = parsedRows.length > 0 && parsedRows.every((r) => r.gramsN !== null)
 
   const ingredients = parsedRows.map((r) => ({
     per100: r.food.per100,
-    grams: r.gramsN !== null && !Number.isNaN(r.gramsN) ? r.gramsN : 0,
+    grams: r.gramsN ?? 0,
   }))
   const ingredientTags = vocab ? rows.map((r) => liveTagIds(vocab, r.food.tagIds)) : []
   const shownTags = vocab ? liveTagIds(vocab, effectiveMealTags(ingredientTags, tagState)) : []
   const chooseTags = vocab ? liveTagIds(vocab, chooseRowTags(shownTags, ingredientTags)) : []
 
-  const addIngredient = (food: Food, grams: number) => {
+  const addIngredient = (food: Food, grams: number, serving: Serving | null) => {
     if (vocab) {
       const before = new Set(shownTags)
       const after = effectiveMealTags([...ingredientTags, liveTagIds(vocab, food.tagIds)], tagState)
@@ -80,7 +89,7 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
         highlightTimer.current = setTimeout(() => setHighlightIds([]), 1500)
       }
     }
-    setRows((all) => [...all, { key: newKey(), food, grams: String(Math.round(grams * 10) / 10) }])
+    setRows((all) => [...all, { key: newKey(), food, amount: amountState(grams, serving) }])
   }
 
   const total = mealTotal(ingredients)
@@ -98,7 +107,7 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
           name: name.trim(),
           servings: servingsN,
           note: note.trim() || null,
-          items: parsedRows.map((r) => ({ id: r.id, foodId: r.food.id, grams: r.gramsN! })),
+          items: parsedRows.map((r) => ({ id: r.id, foodId: r.food.id, grams: r.gramsN!, serving: r.amount.serving })),
           slots,
           addedTagIds: tagState.addedTagIds,
           removedTagIds: tagState.removedTagIds,
@@ -146,24 +155,23 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
             <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Ingredients</h3>
             {rows.length === 0 && <p className="py-2 text-sm text-muted">No ingredients yet.</p>}
             {parsedRows.map((r) => {
-              const kcal = r.gramsN !== null && !Number.isNaN(r.gramsN) ? scaleMacros(r.food.per100, r.gramsN).kcal : 0
+              const kcal = r.gramsN !== null ? scaleMacros(r.food.per100, r.gramsN).kcal : 0
               return (
                 <div key={r.key} className="flex items-center gap-2 border-b border-line py-2">
                   <div className="min-w-0 flex-1">
                     <div className="truncate">{r.food.name}</div>
-                    <div className="text-xs text-muted">{formatNumber(kcal)} kcal</div>
+                    <div className="text-xs text-muted">
+                      {formatNumber(kcal)} kcal
+                      {r.amount.serving && r.gramsN !== null && ` · ${formatNumber(r.gramsN)} ${r.food.basis}`}
+                    </div>
                   </div>
-                  <input
-                    aria-label={`Amount of ${r.food.name}`}
-                    className={`${inputCls} !w-24 text-right`}
-                    inputMode="decimal"
-                    value={r.grams}
-                    onChange={(e) =>
-                      setRows((all) => all.map((x) => (x.key === r.key ? { ...x, grams: e.target.value } : x)))
-                    }
-                    onFocus={(e) => e.target.select()}
+                  <IngredientAmount
+                    name={r.food.name}
+                    basis={r.food.basis}
+                    amount={r.amount}
+                    servingSize={r.amount.serving ?? sizeOf(r.food)}
+                    onChange={(amount) => setRows((all) => all.map((x) => (x.key === r.key ? { ...x, amount } : x)))}
                   />
-                  <span className="w-6 text-sm text-muted">{r.food.basis}</span>
                   <button
                     type="button"
                     aria-label={`Remove ${r.food.name}`}
