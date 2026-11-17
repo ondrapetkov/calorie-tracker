@@ -8,6 +8,7 @@ import { addDays, dayLabel, localDate } from '../../domain/dates'
 import { SLOTS, SLOT_LABELS, defaultSlot, sumMacros, type Slot } from '../../domain/nutrition'
 import { formatNumber } from '../../domain/numbers'
 import { canSaveSlotAsMeal } from '../../domain/loggedMeal'
+import { formatCount, servingCount, type Serving } from '../../domain/servings'
 import { AddFoodFlow } from '../add-food/AddFoodFlow'
 import { WaterCard } from '../body/WaterCard'
 import { useTargets } from '../targets/useTargets'
@@ -100,7 +101,7 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
                   <div className="text-xs text-muted">
                     {e.mealId !== null
                       ? `${formatNumber(e.servings ?? 1, 2).replace(/\.?0+$/, '')} × meal${e.plateEdited ? ' · edited' : ''}`
-                      : `${formatNumber(e.grams ?? 0, 0)} ${e.unit}`}{' '}
+                      : `${e.serving ? `${servingsText(e.grams ?? 0, e.serving)} · ` : ''}${formatNumber(e.grams ?? 0, 0)} ${e.unit}`}{' '}
                     · P {formatNumber(e.protein, 1)} · C {formatNumber(e.carbs, 1)} · F{' '}
                     {formatNumber(e.fat, 1)}
                   </div>
@@ -169,4 +170,10 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
       )}
     </div>
   )
+}
+
+/** "4 servings", "1 serving". */
+function servingsText(grams: number, serving: Serving): string {
+  const n = formatCount(servingCount(grams, serving))
+  return `${n} ${n === '1' ? 'serving' : 'servings'}`
 }

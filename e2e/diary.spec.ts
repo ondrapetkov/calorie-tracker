@@ -117,3 +117,52 @@ test('saves a single logged food as a meal from Edit entry', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Edit entry' })).toBeHidden()
   await expect(snack.getByRole('button', { name: new RegExp(CHICKEN) })).toContainText('1 × meal')
 })
+
+const EGG = 'Vejce slepičí, celé' // 143 kcal per 100 g, 1 serving = 50 g (1 vejce (M))
+
+test('a food logged in servings shows and edits in servings', async ({ page }) => {
+  await slotCard(page, 'Breakfast').getByRole('button', { name: '+ Add' }).click()
+  await pickFood(page, 'vejce', EGG)
+  await page.getByLabel(/^Servings/).fill('2')
+  await page.getByRole('button', { name: 'Add to diary' }).click()
+
+  const entry = slotCard(page, 'Breakfast').getByRole('button', { name: new RegExp(EGG) })
+  await expect(entry).toContainText('2 servings · 100 g')
+  await expect(entry).toContainText('143')
+
+  await entry.click()
+  const edit = sheet(page, 'Edit entry')
+  await expect(edit.getByLabel(/^Servings/)).toHaveValue('2')
+  await edit.getByRole('button', { name: 'More servings' }).click()
+  await edit.getByRole('button', { name: 'More servings' }).click()
+  await expect(edit).toContainText('200 g in total')
+  await edit.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(entry).toContainText('4 servings · 200 g')
+  await expect(entry).toContainText('286')
+
+  // Opening and saving without a change keeps it as it is.
+  await entry.click()
+  await sheet(page, 'Edit entry').getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(entry).toContainText('4 servings · 200 g')
+  await expect(entry).toContainText('286')
+})
+
+test('a food logged in grams can be switched to servings', async ({ page }) => {
+  await slotCard(page, 'Breakfast').getByRole('button', { name: '+ Add' }).click()
+  await pickFood(page, 'vejce', EGG)
+  await page.getByRole('button', { name: 'Grams' }).click()
+  await page.getByLabel(/Amount \(g\)/).fill('100')
+  await page.getByRole('button', { name: 'Add to diary' }).click()
+
+  const entry = slotCard(page, 'Breakfast').getByRole('button', { name: new RegExp(EGG) })
+  await expect(entry).toContainText('100 g')
+  await expect(entry).not.toContainText('servings')
+
+  await entry.click()
+  const edit = sheet(page, 'Edit entry')
+  await expect(edit.getByLabel(/Amount \(g\)/)).toHaveValue('100')
+  await edit.getByRole('button', { name: 'Servings' }).click()
+  await expect(edit.getByLabel(/^Servings/)).toHaveValue('2')
+  await edit.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(entry).toContainText('2 servings · 100 g')
+})

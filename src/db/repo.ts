@@ -192,6 +192,12 @@ export function createRepo(db: AppDB = defaultDb) {
       await db.foods.update(id, { deletedAt: Date.now(), ...touch() })
     },
 
+    /** A food that exists and isn't deleted. */
+    async getFood(id: string): Promise<Food | undefined> {
+      const food = await db.foods.get(id)
+      return food && food.deletedAt === null ? food : undefined
+    },
+
     async findFoodByExternalId(externalId: string): Promise<Food | undefined> {
       return db.foods
         .where('externalId')

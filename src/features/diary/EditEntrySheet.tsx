@@ -23,12 +23,13 @@ export function EditEntrySheet({ entry, onClose, onDeleted, onSavedAsMeal }: Pro
 
 function EditFoodEntrySheet({ entry, onClose, onDeleted, onSavedAsMeal }: Props) {
   const [savingAsMeal, setSavingAsMeal] = useState(false)
-  // A meal can't use a food that has been deleted since it was logged.
-  const foodExists = useLiveQuery(
-    async () => (entry.foodId ? (await repo.liveFoodIds([entry.foodId])).has(entry.foodId) : false),
-    [entry.foodId],
-    false,
-  )
+  // A meal can't use a food that has been deleted since it was logged. Undefined while loading.
+  const food = useLiveQuery(async () => (entry.foodId ? ((await repo.getFood(entry.foodId)) ?? null) : null), [entry.foodId])
+  const foodExists = !!food
+  // The serving the amount was entered in; for one entered in grams, the food's own serving size, if any.
+  const serving =
+    entry.serving ??
+    (food?.defaultServingG ? { grams: food.defaultServingG, label: food.defaultServingLabel } : null)
   const grams = entry.grams ?? 0
   // Derive per-100 values from the entry's own snapshot, so editing does not depend on the food still existing.
   const per100 = grams > 0 ? multiplyMacros(entry, 100 / grams) : multiplyMacros(entry, 1)
@@ -41,13 +42,16 @@ function EditFoodEntrySheet({ entry, onClose, onDeleted, onSavedAsMeal }: Props)
           <AmountForm
             per100={per100}
             unit={entry.unit}
-            servingG={null}
-            servingLabel={null}
+            // Mounted once the food is loaded, so the Servings switch is there from the start.
+            key={food === undefined ? 'loading' : 'loaded'}
+            servingG={serving?.grams ?? null}
+            servingLabel={serving?.label ?? null}
             initialGrams={grams}
+            initialMode={entry.serving ? 'serving' : 'amount'}
             initialSlot={entry.slot}
             submitLabel="Save"
-            onSubmit={async (g, slot) => {
-              await repo.updateEntry(entry.id, { grams: g, slot })
+            onSubmit={async (g, slot, entered) => {
+              await repo.updateEntry(entry.id, { grams: g, slot, serving: entered })
               onClose()
             }}
             onDelete={async () => {
