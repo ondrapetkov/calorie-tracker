@@ -187,3 +187,36 @@ describe('plate from food entries', () => {
     expect(canSaveSlotAsMeal([food('a'), food('gone')], live)).toBe(false)
   })
 })
+
+describe('servings on plates', () => {
+  const slice = { grams: 25, label: '1 slice' }
+  const bread = { kcal: 250, protein: 8, carbs: 48, fat: 3, fiber: null, sugar: null, salt: null }
+  const row = (over: Partial<LoggedMealItem> = {}): LoggedMealItem => ({
+    id: 'r1', mealItemId: 'mi-bread', foodId: 'f-bread', name: 'Bread', basis: 'g', per100: bread, grams: 100, serving: slice, ...over,
+  })
+
+  it('copies a recipe row\'s serving onto the plate, scaled', () => {
+    const [r] = plateFromMeal([{ mealItemId: 'mi-bread', foodId: 'f-bread', name: 'Bread', basis: 'g', per100: bread, grams: 100, serving: slice }], 2, 1)
+    expect(r.grams).toBe(50)
+    expect(r.serving).toEqual(slice)
+  })
+
+  it('copies an entry\'s serving when building a plate from food entries', () => {
+    const [r] = plateFromFoodEntries([{ ...bread, foodId: 'f', grams: 100, unit: 'g', label: 'Bread', serving: slice }], () => 'x')
+    expect(r.serving).toEqual(slice)
+  })
+
+  it('sees a change of serving alone as a change', () => {
+    expect(plateChanged([row()], [row({ serving: undefined })])).toBe(true)
+    expect(plateChanged([row()], [row({ serving: { ...slice } })])).toBe(false)
+  })
+
+  it('carries a row\'s serving over to the saved meal', () => {
+    const saved: SavedMealRow[] = [{ id: 'mi-bread', foodId: 'f-bread', grams: 100 }]
+    const before = [row({ serving: undefined })]
+    const after = [row(), row({ id: 'r2', mealItemId: null, foodId: 'f-new', grams: 50 })]
+    const { items } = savedMealFromPlate(saved, before, after, 1)
+    expect(items[0]).toMatchObject({ id: 'mi-bread', grams: 100, serving: slice })
+    expect(items[1]).toMatchObject({ foodId: 'f-new', grams: 50, serving: slice })
+  })
+})

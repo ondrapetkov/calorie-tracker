@@ -1,5 +1,6 @@
 import { mealTotal } from './meals'
 import { multiplyMacros, type Macros } from './nutrition'
+import { sameServing, type Serving } from './servings'
 
 /** One ingredient on the plate of a logged meal: a snapshot that keeps its own nutrition. */
 export interface LoggedMealItem {
@@ -13,6 +14,8 @@ export interface LoggedMealItem {
   per100: Macros
   /** Amount on the plate, in g or ml. */
   grams: number
+  /** Set when the amount is shown and edited in servings of this size. */
+  serving?: Serving
 }
 
 /** A saved meal's ingredient, as far as plate edits are concerned. */
@@ -20,13 +23,22 @@ export interface SavedMealRow {
   id: string
   foodId: string
   grams: number
+  serving?: Serving
 }
 
 const round1 = (v: number) => Math.round(v * 10) / 10
 
 /** The plate for `servingsLogged` portions of a recipe that makes `recipeServings`. */
 export function plateFromMeal(
-  items: { mealItemId: string; foodId: string; name: string; basis: 'g' | 'ml'; per100: Macros; grams: number }[],
+  items: {
+    mealItemId: string
+    foodId: string
+    name: string
+    basis: 'g' | 'ml'
+    per100: Macros
+    grams: number
+    serving?: Serving
+  }[],
   recipeServings: number,
   servingsLogged: number,
 ): LoggedMealItem[] {
@@ -40,11 +52,18 @@ export function plateFromMeal(
     basis: i.basis,
     per100: i.per100,
     grams: (i.grams * servingsLogged) / recipeServings,
+    ...(i.serving && { serving: i.serving }),
   }))
 }
 
 /** A logged food, as far as saving it into a meal is concerned. */
-export type FoodEntryLike = Macros & { foodId: string | null; grams: number | null; unit: 'g' | 'ml'; label: string }
+export type FoodEntryLike = Macros & {
+  foodId: string | null
+  grams: number | null
+  unit: 'g' | 'ml'
+  label: string
+  serving?: Serving
+}
 
 /**
  * The plate for a meal made from logged foods, one row per entry at its logged amount. Nutrition
@@ -64,6 +83,7 @@ export function plateFromFoodEntries(entries: FoodEntryLike[], newId: () => stri
       // Same rule as editing a food entry: with no amount, the entry's macros stand in for per-100.
       per100: multiplyMacros(e, grams > 0 ? 100 / grams : 1),
       grams,
+      ...(e.serving && { serving: e.serving }),
     }
   })
 }
@@ -87,7 +107,7 @@ export function plateChanged(before: LoggedMealItem[], after: LoggedMealItem[]):
   const byId = new Map(before.map((r) => [r.id, r]))
   return after.some((r) => {
     const b = byId.get(r.id)
-    return !b || b.grams !== r.grams || b.foodId !== r.foodId
+    return !b || b.grams !== r.grams || b.foodId !== r.foodId || !sameServing(b.serving, r.serving)
   })
 }
 
@@ -114,11 +134,16 @@ export function savedMealFromPlate(
   // Saved items changed or removed via a plate row mapped to them.
   const delta = new Map<string, number>()
   const removed = new Set<string>()
+  /** Saved items whose plate row switched between servings and grams (or to another serving). */
+  const servingOf = new Map<string, Serving | undefined>()
   for (const b of before) {
     if (!b.mealItemId) continue
     const a = afterById.get(b.id)
     if (!a) removed.add(b.mealItemId)
-    else if (a.grams !== b.grams) delta.set(b.mealItemId, (delta.get(b.mealItemId) ?? 0) + (a.grams - b.grams) * factor)
+    else {
+      if (a.grams !== b.grams) delta.set(b.mealItemId, (delta.get(b.mealItemId) ?? 0) + (a.grams - b.grams) * factor)
+      if (a.grams !== b.grams || !sameServing(a.serving, b.serving)) servingOf.set(b.mealItemId, a.serving)
+    }
   }
 
   const items: SavedMealRow[] = []
@@ -126,7 +151,13 @@ export function savedMealFromPlate(
     if (removed.has(s.id)) continue
     const grams = round1(s.grams + (delta.get(s.id) ?? 0))
     if (grams <= 0) continue
-    items.push(grams === s.grams ? s : { ...s, grams })
+    if (!servingOf.has(s.id)) {
+      items.push(grams === s.grams ? s : { ...s, grams })
+      continue
+    }
+    const { serving: _old, ...rest } = s
+    const serving = servingOf.get(s.id)
+    items.push({ ...rest, grams, ...(serving && { serving }) })
   }
 
   const plate = after.map((a) => {
@@ -139,7 +170,7 @@ export function savedMealFromPlate(
     const grams = round1(a.grams * factor)
     if (grams <= 0) return { ...a, mealItemId: null }
     const id = crypto.randomUUID()
-    items.push({ id, foodId: a.foodId, grams })
+    items.push({ id, foodId: a.foodId, grams, ...(a.serving && { serving: a.serving }) })
     return { ...a, mealItemId: id }
   })
 
