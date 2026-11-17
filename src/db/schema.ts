@@ -1,4 +1,5 @@
 import type { LoggedMealItem } from '../domain/loggedMeal'
+import type { Serving } from '../domain/servings'
 import Dexie, { type EntityTable } from 'dexie'
 import type { FoodSource, Macros, Slot } from '../domain/nutrition'
 
@@ -51,6 +52,8 @@ export interface LogEntry extends SyncFields, Macros {
   recipeServings?: number
   /** For a meal: true once its plate has been edited from the diary. */
   plateEdited?: boolean
+  /** For a food: set when the amount was entered in servings of this size; shown and edited that way. */
+  serving?: Serving
 }
 
 export interface Meal extends SyncFields {
@@ -72,6 +75,8 @@ export interface MealItem extends SyncFields {
   foodId: string
   grams: number
   sortOrder: number
+  /** Set when the amount was entered in servings of this size; shown and edited that way. */
+  serving?: Serving
 }
 
 export interface Profile extends SyncFields {

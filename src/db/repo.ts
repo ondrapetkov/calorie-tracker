@@ -24,6 +24,7 @@ import {
   type LoggedMealItem,
 } from '../domain/loggedMeal'
 import { matchesQuery } from '../domain/search'
+import type { Serving } from '../domain/servings'
 import { effectiveMealTags } from '../domain/mealTags'
 import { buildVocabulary, findGroupByName, findTagByName, liveTagIds, type Vocabulary } from '../domain/tags'
 import { BUILTIN_GROUPS, BUILTIN_TAGS } from '../data/builtinTags'
@@ -40,7 +41,7 @@ export interface MealInput {
   servings: number
   note: string | null
   /** `id` is set for ingredients that already exist, so edits keep their identity. */
-  items: { id?: string; foodId: string; grams: number }[]
+  items: { id?: string; foodId: string; grams: number; serving?: Serving | null }[]
   /** Left out on an update: the stored value is kept. Left out on create: none. */
   slots?: Slot[]
   addedTagIds?: string[]
@@ -124,7 +125,17 @@ function touch(): Pick<SyncFields, 'updatedAt' | 'dirty'> {
 function recipeRows(detail: MealDetail) {
   return detail.items.flatMap((i) =>
     i.food
-      ? [{ mealItemId: i.id, foodId: i.foodId, name: i.food.name, basis: i.food.basis, per100: i.food.per100, grams: i.grams }]
+      ? [
+          {
+            mealItemId: i.id,
+            foodId: i.foodId,
+            name: i.food.name,
+            basis: i.food.basis,
+            per100: i.food.per100,
+            grams: i.grams,
+            serving: i.serving,
+          },
+        ]
       : [],
   )
 }
@@ -210,8 +221,8 @@ export function createRepo(db: AppDB = defaultDb) {
     // ---- log entries ----------------------------------------------------
 
     /** Log `grams` of a food. The macros are snapshotted onto the entry. */
-    async logFood(params: { food: Food; grams: number; date: string; slot: Slot }): Promise<LogEntry> {
-      const { food, grams, date, slot } = params
+    async logFood(params: { food: Food; grams: number; date: string; slot: Slot; serving?: Serving | null }): Promise<LogEntry> {
+      const { food, grams, date, slot, serving } = params
       const now = Date.now()
       const entry: LogEntry = {
         ...fresh(),
@@ -225,6 +236,7 @@ export function createRepo(db: AppDB = defaultDb) {
         servings: null,
         label: food.brand ? `${food.name} · ${food.brand}` : food.name,
         loggedAt: now,
+        ...(serving && { serving }),
       }
       await db.transaction('rw', db.logEntries, db.foods, async () => {
         await db.logEntries.add(entry)
@@ -240,9 +252,10 @@ export function createRepo(db: AppDB = defaultDb) {
     /**
      * Change an entry's amount and/or slot. The existing snapshot is rescaled by the
      * ratio of the new amount to the old one, so editing never reaches back into the
-     * food (which may have changed or been deleted since).
+     * food (which may have changed or been deleted since). `serving` sets or (null) removes
+     * the serving the amount is shown in; left out, it is kept.
      */
-    async updateEntry(id: string, changes: { grams: number; slot: Slot }): Promise<void> {
+    async updateEntry(id: string, changes: { grams: number; slot: Slot; serving?: Serving | null }): Promise<void> {
       const entry = await db.logEntries.get(id)
       if (!entry) return
       const ratio = entry.grams && entry.grams > 0 ? changes.grams / entry.grams : 1
@@ -250,6 +263,8 @@ export function createRepo(db: AppDB = defaultDb) {
         ...multiplyMacros(entry, ratio),
         grams: changes.grams,
         slot: changes.slot,
+        // Dexie removes a field updated to undefined.
+        ...(changes.serving !== undefined && { serving: changes.serving ?? undefined }),
         ...touch(),
       })
     },
@@ -298,7 +313,7 @@ export function createRepo(db: AppDB = defaultDb) {
           servings: 1,
           note: null,
           slots: [slot],
-          items: plate.map((r) => ({ id: r.mealItemId!, foodId: r.foodId, grams: r.grams })),
+          items: plate.map((r) => ({ id: r.mealItemId!, foodId: r.foodId, grams: r.grams, serving: r.serving })),
         })
         const now = Date.now()
         for (const e of entries) await db.logEntries.update(e.id, { deletedAt: now, ...touch() })
@@ -403,7 +418,7 @@ export function createRepo(db: AppDB = defaultDb) {
         let plate = changes.plate
         const detail = changes.updateSavedMeal && entry.mealId ? await this.getMeal(entry.mealId) : undefined
         if (detail) {
-          const saved = detail.items.map((i) => ({ id: i.id, foodId: i.foodId, grams: i.grams }))
+          const saved = detail.items.map((i) => ({ id: i.id, foodId: i.foodId, grams: i.grams, serving: i.serving }))
           const factor = scaleFactor(current.recipeServings, entry.servings ?? 1)
           const result = savedMealFromPlate(saved, current.plate, plate, factor)
           await this.saveMeal(
@@ -462,7 +477,14 @@ export function createRepo(db: AppDB = defaultDb) {
         }
         for (const [index, item] of input.items.entries()) {
           if (item.id && existing.some((e) => e.id === item.id)) {
-            await db.mealItems.update(item.id, { foodId: item.foodId, grams: item.grams, sortOrder: index, ...touch() })
+            await db.mealItems.update(item.id, {
+              foodId: item.foodId,
+              grams: item.grams,
+              sortOrder: index,
+              // Dexie removes a field updated to undefined.
+              serving: item.serving ?? undefined,
+              ...touch(),
+            })
           } else {
             await db.mealItems.add({
               ...fresh(),
@@ -472,6 +494,7 @@ export function createRepo(db: AppDB = defaultDb) {
               foodId: item.foodId,
               grams: item.grams,
               sortOrder: index,
+              ...(item.serving && { serving: item.serving }),
             })
           }
         }
