@@ -170,3 +170,56 @@ test('the ingredient tag picker has Done in its header', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Ingredient tags', level: 2 })).toBeHidden()
   await expect(sheet(page, 'New meal').getByRole('button', { name: /Chicken/ })).toBeVisible()
 })
+
+test('meal ingredients added in servings stay in servings', async ({ page }) => {
+  const egg = 'Vejce slepičí, celé' // 143 kcal per 100 g, 1 serving = 50 g
+  const amount = (root: ReturnType<typeof sheet>) => root.getByLabel(`Amount of ${egg}`)
+
+  await tab(page, 'Meals')
+  await page.getByRole('button', { name: 'New meal' }).click()
+  const editor = sheet(page, 'New meal')
+  await editor.getByLabel('Name', { exact: true }).fill('Vajíčka')
+  await editor.getByRole('button', { name: '+ Add ingredient' }).click()
+  await pickFood(page, 'vejce', egg)
+  await page.getByLabel(/^Servings \(1 =/).fill('2')
+  await page.getByRole('button', { name: 'Add to meal' }).click()
+
+  await expect(amount(editor)).toHaveValue('2')
+  await expect(editor).toContainText('100 g')
+  await expect(editor.getByRole('button', { name: `Switch ${egg} to grams` })).toHaveText('serv.')
+  await editor.getByRole('button', { name: `More ${egg}` }).click()
+  await expect(amount(editor)).toHaveValue('3')
+  await expect(editor).toContainText('150 g')
+  await editor.getByRole('button', { name: 'Done' }).click()
+  await expect(editor).toBeHidden()
+
+  // Reopened in the editor, still in servings.
+  await page.getByRole('button', { name: /Vajíčka/ }).click()
+  await sheet(page, 'Vajíčka').getByRole('button', { name: 'Edit', exact: true }).click()
+  await expect(amount(sheet(page, 'Edit meal'))).toHaveValue('3')
+  await sheet(page, 'Edit meal').getByRole('button', { name: 'Close' }).click()
+  await sheet(page, 'Vajíčka').getByRole('button', { name: 'Close' }).click()
+
+  await tab(page, 'Diary')
+  await page.getByRole('button', { name: 'Add food' }).click()
+  await page.getByPlaceholder(/Search foods/).fill('vajicka')
+  await page.getByRole('button', { name: /Vajíčka/ }).first().click()
+  await page.getByRole('button', { name: 'Add to diary' }).click()
+  const entry = page.getByRole('button', { name: /Vajíčka/ })
+  await expect(entry).toContainText('215')
+
+  // On the plate: in servings, and switching to grams keeps the amount.
+  await entry.click()
+  const edit = sheet(page, 'Edit entry')
+  await expect(amount(edit)).toHaveValue('3')
+  await edit.getByRole('button', { name: `Switch ${egg} to grams` }).click()
+  await expect(amount(edit)).toHaveValue('150')
+  await expect(edit.getByRole('button', { name: `Switch ${egg} to servings` })).toHaveText('g')
+  await edit.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('dialog', { name: 'Also update the saved meal?' }).getByRole('button', { name: 'Just this entry' }).click()
+  await expect(edit).toBeHidden()
+  await expect(entry).toContainText('215')
+
+  await entry.click()
+  await expect(amount(edit)).toHaveValue('150')
+})
