@@ -7,7 +7,7 @@ import { formatNumber, parseNumber } from '../../domain/numbers'
 import { SLOTS, SLOT_LABELS, scaleMacros, type Slot } from '../../domain/nutrition'
 import { addMealTag, chooseRowTags, effectiveMealTags, removeMealTag, type MealTagState } from '../../domain/mealTags'
 import { liveTagIds } from '../../domain/tags'
-import { TagChip } from '../tags/TagChip'
+import { SlotChip } from '../tags/SlotChip'
 import { TagEditorRow } from '../tags/TagEditorRow'
 import { useVocabulary } from '../tags/useVocabulary'
 import { AddFoodFlow } from '../add-food/AddFoodFlow'
@@ -131,7 +131,7 @@ export function MealEditor({ detail, onClose, onSaved }: Props) {
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Meal type</h3>
             <div className="flex flex-wrap gap-2" role="group" aria-label="Meal type">
               {SLOTS.map((s) => (
-                <TagChip
+                <SlotChip
                   key={s}
                   label={SLOT_LABELS[s]}
                   selected={slots.includes(s)}

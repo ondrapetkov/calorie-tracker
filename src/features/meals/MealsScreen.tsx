@@ -7,7 +7,8 @@ import { SLOT_LABELS, defaultSlot } from '../../domain/nutrition'
 import { matchesQuery } from '../../domain/search'
 import { EMPTY_FILTER, isFilterActive, matchesTagFilter, type TagFilter } from '../../domain/tagFilter'
 import { TagFilterBar } from '../tags/TagFilterBar'
-import { tagNames, useVocabulary } from '../tags/useVocabulary'
+import { tagLabels, useVocabulary } from '../tags/useVocabulary'
+import { SlotBadge } from '../tags/SlotChip'
 import { formatNumber } from '../../domain/numbers'
 import { MealEditor } from './MealEditor'
 import { MealServingsForm } from './MealServingsForm'
@@ -72,7 +73,8 @@ export function MealsScreen() {
             </p>
           )}
           {shown.map((m) => {
-            const labels = [...m.slots.map((s) => SLOT_LABELS[s]), ...tagNames(vocab, m.tagIds)]
+            const slotNames = m.slots.map((s) => SLOT_LABELS[s])
+            const ingredients = tagLabels(vocab, m.tagIds)
             return (
             <button
               key={m.meal.id}
@@ -82,7 +84,19 @@ export function MealsScreen() {
             >
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{m.meal.name}</div>
-                {labels.length > 0 && <div className="truncate text-xs text-accent/80">{labels.join(' · ')}</div>}
+                {slotNames.length > 0 && (
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1 text-xs" aria-label={`Meal type: ${slotNames.join(', ')}`}>
+                    <span aria-hidden="true">🕐</span>
+                    {slotNames.map((n) => (
+                      <SlotBadge key={n} label={n} />
+                    ))}
+                  </div>
+                )}
+                {ingredients.length > 0 && (
+                  <div className="mt-0.5 truncate text-xs text-muted" aria-label={`Ingredients: ${ingredients.map((t) => t.name).join(', ')}`}>
+                    {ingredients.map((t) => `${t.icon} ${t.name}`).join(' · ')}
+                  </div>
+                )}
                 <div className="truncate text-xs text-muted">
                   {m.items.length} ingredient{m.items.length === 1 ? '' : 's'} · {m.meal.servings}{' '}
                   {m.meal.servings === 1 ? 'serving' : 'servings'}
