@@ -10,12 +10,11 @@ export function SlotChip({ label, selected, onClick }: { label: string; selected
       type="button"
       aria-pressed={selected}
       onClick={onClick}
-      className={`whitespace-nowrap rounded-md border-[1.5px] border-accent px-2.5 py-1 active:opacity-80 ${
+      className={`whitespace-nowrap rounded-md border-[1.5px] border-accent px-2.5 py-1 text-xs leading-6 font-bold uppercase tracking-wide active:opacity-80 ${
         selected ? 'bg-accent text-on-accent' : 'text-accent'
       }`}
     >
-      {/* On a span: the global `button { font: inherit }` rule beats size and weight utilities on the button. */}
-      <span className="text-xs font-bold uppercase tracking-wide">{label}</span>
+      {label}
     </button>
   )
 }
