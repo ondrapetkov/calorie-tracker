@@ -7,11 +7,11 @@ export function useVocabulary(): Vocabulary | undefined {
   return useLiveQuery(() => repo.vocabulary(), [])
 }
 
-/** Tag names for ids, skipping ids that are not live tags. */
-export function tagNames(vocab: Vocabulary | undefined, ids: readonly string[]): string[] {
+/** Tag names and emoji for ids, skipping ids that are not live tags. */
+export function tagLabels(vocab: Vocabulary | undefined, ids: readonly string[]): { name: string; icon: string }[] {
   if (!vocab) return []
   return ids.flatMap((id) => {
     const t = vocab.byId.get(id)
-    return t ? [t.name] : []
+    return t ? [{ name: t.name, icon: t.icon }] : []
   })
 }

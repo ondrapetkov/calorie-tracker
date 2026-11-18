@@ -242,3 +242,32 @@ test('switching an ingredient between grams and servings keeps the amount', asyn
   await editor.getByRole('button', { name: `Switch ${white} to grams` }).click()
   await expect(amount).toHaveValue('90')
 })
+
+test('the meal list shows time of day and ingredient tags apart', async ({ page }) => {
+  const chicken = 'Kuřecí prsa bez kůže, syrová' // tagged Chicken
+  async function createMeal(name: string, mealType?: string | string[]) {
+    await tab(page, 'Meals')
+    await page.getByRole('button', { name: 'New meal' }).click()
+    const editor = sheet(page, 'New meal')
+    await editor.getByLabel('Name', { exact: true }).fill(name)
+    for (const t of [mealType ?? []].flat())
+      await editor.getByRole('group', { name: 'Meal type' }).getByRole('button', { name: t }).click()
+    await editor.getByRole('button', { name: '+ Add ingredient' }).click()
+    await pickFood(page, 'kureci prsa', chicken)
+    await page.getByLabel(/Amount \(g\)/).fill('100')
+    await page.getByRole('button', { name: 'Add to meal' }).click()
+    await editor.getByRole('button', { name: 'Done' }).click()
+    await expect(editor).toBeHidden()
+  }
+  await createMeal('Kuře k obědu', 'Lunch')
+  await createMeal('Kuře kdykoli')
+  await createMeal('Kuře večer i v poledne', ['Dinner', 'Lunch'])
+
+  const row = (name: string) => page.getByRole('button', { name: new RegExp(name) })
+  await expect(row('Kuře k obědu').getByLabel('Meal type: Lunch')).toBeVisible()
+  await expect(row('Kuře k obědu').getByLabel('Ingredients: Chicken')).toContainText('Chicken')
+  await expect(row('Kuře kdykoli').getByLabel('Ingredients: Chicken')).toBeVisible()
+  await expect(row('Kuře kdykoli').getByLabel(/^Meal type:/)).toHaveCount(0)
+  // Badges in day order, whatever order the meal types were ticked in.
+  await expect(row('Kuře večer i v poledne').getByLabel('Meal type: Lunch, Dinner')).toBeVisible()
+})

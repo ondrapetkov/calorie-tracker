@@ -10,6 +10,7 @@ import {
 } from '../../domain/tagFilter'
 import type { Vocabulary } from '../../domain/tags'
 import { TagChip } from './TagChip'
+import { SlotChip } from './SlotChip'
 import { TagPicker } from './TagPicker'
 
 interface Props {
@@ -30,7 +31,7 @@ export function TagFilterBar({ vocab, filter, onChange, showSlots, resultCount, 
       {showSlots && (
         <div className="flex flex-wrap gap-2" role="group" aria-label="Meal type">
           {SLOTS.map((s) => (
-            <TagChip
+            <SlotChip
               key={s}
               label={SLOT_LABELS[s]}
               selected={filter.slots.includes(s)}
