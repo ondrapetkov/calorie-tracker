@@ -61,10 +61,16 @@ body {
   pointer-events: none;
 }
 
-input,
-select,
-button {
-  font: inherit;
+/*
+ * In the base layer, like Tailwind's own preflight: unlayered, this rule beat every text-size and
+ * weight utility on buttons and inputs (`text-sm`, `font-semibold` and the like did nothing there).
+ */
+@layer base {
+  input,
+  select,
+  button {
+    font: inherit;
+  }
 }
 
 summary {
