@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Button, Sheet, inputCls } from '../../components/ui'
 import { repo, type MealDetail } from '../../db/repo'
 import { localDate } from '../../domain/dates'
-import { SLOT_LABELS, defaultSlot } from '../../domain/nutrition'
+import { SLOTS, SLOT_LABELS, defaultSlot } from '../../domain/nutrition'
 import { matchesQuery } from '../../domain/search'
 import { EMPTY_FILTER, isFilterActive, matchesTagFilter, type TagFilter } from '../../domain/tagFilter'
 import { TagFilterBar } from '../tags/TagFilterBar'
@@ -73,7 +73,8 @@ export function MealsScreen() {
             </p>
           )}
           {shown.map((m) => {
-            const slotNames = m.slots.map((s) => SLOT_LABELS[s])
+            // In day order (as the filter chips), not the order they were ticked in.
+            const slotNames = SLOTS.filter((s) => m.slots.includes(s)).map((s) => SLOT_LABELS[s])
             const ingredients = tagLabels(vocab, m.tagIds)
             return (
             <button
