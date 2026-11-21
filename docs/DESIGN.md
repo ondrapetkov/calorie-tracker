@@ -115,12 +115,13 @@ All nutrition is normalised to per 100 g (or per 100 ml). A food is written to t
 |---|---|
 | `date` | Local calendar day, `YYYY-MM-DD`. This is the grouping key, not a UTC timestamp. |
 | `slot` | 'breakfast' \| 'lunch' \| 'dinner' \| 'snack' |
-| `foodId` / `mealId` | Exactly one is set. |
+| `foodId` / `mealId` | At most one is set. Neither for a one-off logged from an AI estimate (no food behind it). |
 | `grams` / `unit` / `servings` | Amount eaten. `grams` (with `unit` 'g' or 'ml') for a food, `servings` for a meal. |
 | `kcal`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, `salt` | Snapshot of what this entry contributes. The last three are nullable (unknown, not zero). |
 | `label` | Display name snapshot, so the diary still reads correctly if the food is deleted. |
 | `loggedAt` | Epoch ms, for ordering within a slot. |
 | `serving` | Optional, for a food: `{ grams, label }`, the serving the amount was entered in, as it was then. The diary shows and edits the amount as `grams / serving.grams` servings. Missing means it was entered in grams. Plate rows of a logged meal carry the same field. |
+| `estimate` | Optional, `'ai'` when the values are an AI's estimate (logged via "From AI"); the diary marks the entry with ✨. |
 
 **weight_entry**: `date`, `kg`, `measuredAt`. One entry per day is the norm; if there are several, the last one wins in charts.
 
