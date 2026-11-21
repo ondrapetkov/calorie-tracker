@@ -54,6 +54,43 @@ describe('reading an AI answer', () => {
     expect(r.ok && per100FromTotals(r.estimate.totals, 450).kcal).toBeCloseTo(197.8, 1)
   })
 
+  it('reads thousands separators and kilograms', () => {
+    const r = readAiAnswer(ANSWER.replace('Weight: 450 g', 'Weight: 1,100 g').replace('Energy: 890 kcal', 'Energy: 1,250 kcal'))
+    expect(r.ok && [r.estimate.grams, r.estimate.totals.kcal]).toEqual([1100, 1250])
+    const spaced = readAiAnswer(ANSWER.replace('Weight: 450 g', 'Weight: 1 100 g').replace('Energy: 890 kcal', 'Energy: 1 250 kcal'))
+    expect(spaced.ok && [spaced.estimate.grams, spaced.estimate.totals.kcal]).toEqual([1100, 1250])
+    const kg = readAiAnswer(ANSWER.replace('Weight: 450 g', 'Weight: 1.2 kg').replace('Energy: 890 kcal', 'Energy: 2100 kcal'))
+    expect(kg.ok && kg.estimate.grams).toBe(1200)
+  })
+
+  it('refuses a weight that cannot hold that much energy', () => {
+    expect(readAiAnswer(ANSWER.replace('Weight: 450 g', 'Weight: 1 g'))).toEqual({ ok: false, missing: ['Weight'] })
+  })
+
+  it('reads each value only from its own line', () => {
+    const r = readAiAnswer(
+      ANSWER.replace('Name: Kebab v tortille', 'Name: 500 kcal bowl').replace('Energy: 890 kcal', 'Energy: 3725 kJ') +
+        '\n\nThe garlic sauce alone adds about 150 kcal.\nFibre content is low.\n3',
+    )
+    expect(r.ok && r.estimate.name).toBe('500 kcal bowl')
+    expect(r.ok && r.estimate.totals.kcal).toBe(890)
+    expect(r.ok && r.estimate.totals.fiber).toBe(5)
+  })
+
+  it('accepts approximate values and Czech labels', () => {
+    const approx = readAiAnswer(ANSWER.replace('Protein: 48 g', 'Protein: ~48 g').replace('Fat: 39 g', 'Fat: approx. 39 g'))
+    expect(approx.ok && [approx.estimate.totals.protein, approx.estimate.totals.fat]).toEqual([48, 39])
+    const cz = readAiAnswer(
+      ANSWER.replace('Name:', 'Název:').replace('Weight:', 'Hmotnost:').replace('Energy:', 'Energie:').replace('Protein:', 'Bílkoviny:'),
+    )
+    expect(cz.ok && [cz.estimate.name, cz.estimate.grams, cz.estimate.totals.kcal, cz.estimate.totals.protein]).toEqual([
+      'Kebab v tortille',
+      450,
+      890,
+      48,
+    ])
+  })
+
   it('asks for the block in the prompt', () => {
     expect(AI_PROMPT).toContain('Name:')
     expect(AI_PROMPT).toContain('Salt:')

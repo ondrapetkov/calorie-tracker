@@ -88,12 +88,17 @@ export function plateFromFoodEntries(entries: FoodEntryLike[], newId: () => stri
   })
 }
 
-/** Whether a diary slot's rows can be saved as one meal: two or more foods that still exist, and no meals. */
+/**
+ * Whether a diary slot's rows can be saved as one meal: two or more foods that still exist, and no
+ * meals. One-offs with no food (AI estimates) don't count either way.
+ */
 export function canSaveSlotAsMeal(
   rows: { foodId: string | null; mealId: string | null }[],
   liveFoodIds: Set<string>,
 ): boolean {
-  return rows.length >= 2 && rows.every((r) => r.mealId === null && r.foodId !== null && liveFoodIds.has(r.foodId))
+  // One-offs with no food behind them (AI estimates) are left out of the meal, not a reason to refuse.
+  const foods = rows.filter((r) => r.foodId !== null || r.mealId !== null)
+  return foods.length >= 2 && foods.every((r) => r.mealId === null && r.foodId !== null && liveFoodIds.has(r.foodId))
 }
 
 /** What the plate adds up to. */

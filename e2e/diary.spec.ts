@@ -218,3 +218,21 @@ test('says what is missing from an AI answer', async ({ page }) => {
   await readAiAnswerInto(page, AI_ANSWER.replace('Weight: 450 g\n', ''))
   await expect(page.getByRole('alert')).toContainText("Couldn't find Weight in the answer")
 })
+
+test('saving a slot as a meal leaves an AI one-off as it is', async ({ page }) => {
+  await logToSlot(page, 'Dinner', 'kureci prsa', CHICKEN, 150)
+  await logToSlot(page, 'Dinner', 'ryze varena', RICE, 200)
+  await readAiAnswerInto(page, AI_ANSWER)
+  await sheet(page, 'Check').getByRole('button', { name: 'Add to diary' }).click()
+  await page.getByRole('button', { name: 'Just this entry' }).click()
+
+  const dinner = slotCard(page, 'Dinner')
+  await dinner.getByRole('button', { name: 'Save as meal' }).click()
+  const save = sheet(page, 'Save as meal')
+  await expect(save).not.toContainText('Kebab')
+  await save.getByLabel('Name').fill('Kuře s rýží')
+  await save.getByRole('button', { name: 'Done' }).click()
+  await expect(save).toBeHidden()
+  await expect(dinner.getByRole('button', { name: /Kuře s rýží/ })).toContainText('1 × meal')
+  await expect(dinner.getByRole('button', { name: /Kebab v tortille/ })).toContainText('✨ AI estimate')
+})

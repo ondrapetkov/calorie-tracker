@@ -111,7 +111,7 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
             ))}
             {canSaveSlotAsMeal(rows, liveFoodIds) && (
               <div className="mt-2 border-t border-line pt-2 text-center">
-                <Button variant="ghost" className="px-3 py-1 text-sm" onClick={() => setSavingSlot(rows)}>
+                <Button variant="ghost" className="px-3 py-1 text-sm" onClick={() => setSavingSlot(rows.filter((r) => r.foodId !== null))}>
                   Save as meal
                 </Button>
               </div>
