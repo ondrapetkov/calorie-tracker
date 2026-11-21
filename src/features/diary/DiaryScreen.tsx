@@ -101,7 +101,7 @@ export function DiaryScreen({ onOpenTargets }: { onOpenTargets: () => void }) {
                   <div className="text-xs text-muted">
                     {e.mealId !== null
                       ? `${formatNumber(e.servings ?? 1, 2).replace(/\.?0+$/, '')} × meal${e.plateEdited ? ' · edited' : ''}`
-                      : `${e.serving ? `${servingsText(e.grams ?? 0, e.serving)} · ` : ''}${formatNumber(e.grams ?? 0, 0)} ${e.unit}`}{' '}
+                      : `${e.estimate === 'ai' ? '✨ AI estimate · ' : ''}${e.serving ? `${servingsText(e.grams ?? 0, e.serving)} · ` : ''}${formatNumber(e.grams ?? 0, 0)} ${e.unit}`}{' '}
                     · P {formatNumber(e.protein, 1)} · C {formatNumber(e.carbs, 1)} · F{' '}
                     {formatNumber(e.fat, 1)}
                   </div>

@@ -14,6 +14,10 @@ import { SearchView } from './SearchView'
 import { TagEditorRow } from '../tags/TagEditorRow'
 import { ChooseTagView } from './ChooseTagView'
 import { useVocabulary } from '../tags/useVocabulary'
+import type { AiEstimate } from '../../domain/aiEstimate'
+import { AiCheckView } from './AiCheckView'
+import { FromAiView } from './FromAiView'
+import { SaveEstimateDialog } from './SaveEstimateDialog'
 
 type View =
   | { kind: 'search' }
@@ -23,6 +27,8 @@ type View =
   | { kind: 'custom'; draft?: Partial<FoodDraft>; notice?: string }
   | { kind: 'meal'; detail: MealDetail }
   | { kind: 'choose'; tagId: string }
+  | { kind: 'ai' }
+  | { kind: 'ai-check'; estimate: AiEstimate }
 
 type Mode =
   /** Log to the diary. */
@@ -47,6 +53,8 @@ export function AddFoodFlow({ mode, onClose }: Props) {
     mode.kind === 'pick' && mode.chooseTagId ? { kind: 'choose', tagId: mode.chooseTagId } : { kind: 'search' },
   ])
   const view = stack[stack.length - 1]
+  /** An AI estimate waiting for the "Save as a food?" answer. */
+  const [asking, setAsking] = useState<{ estimate: AiEstimate; grams: number; slot: Slot } | null>(null)
   const push = (v: View) => setStack((s) => [...s, v])
   const replace = (v: View) => setStack((s) => [...s.slice(0, -1), v])
   const back = () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
@@ -89,6 +97,15 @@ export function AddFoodFlow({ mode, onClose }: Props) {
     onClose()
   }
 
+  const logEstimate = async (saveAsFood: boolean) => {
+    const pending = asking
+    setAsking(null)
+    if (!pending || mode.kind !== 'log') return
+    await repo.logEstimate({ ...pending, date: mode.date, saveAsFood })
+    mode.onLogged(`Added ${pending.estimate.name}`)
+    onClose()
+  }
+
   const confirmMeal = async (detail: MealDetail, servings: number, chosenSlot: Slot) => {
     if (mode.kind !== 'log') return
     await repo.logMeal({ mealId: detail.meal.id, servings, date: mode.date, slot: chosenSlot })
@@ -108,7 +125,11 @@ export function AddFoodFlow({ mode, onClose }: Props) {
             ? 'Meal'
             : view.kind === 'choose'
               ? `Choose ${chooseName.toLowerCase()}`
-              : 'Amount'
+              : view.kind === 'ai'
+                ? 'From AI'
+                : view.kind === 'ai-check'
+                  ? 'Check'
+                  : 'Amount'
 
   return (
     <Sheet title={title} onBack={stack.length > 1 ? back : undefined} onClose={onClose}>
@@ -119,8 +140,18 @@ export function AddFoodFlow({ mode, onClose }: Props) {
           slot={mode.kind === 'log' ? mode.slot : undefined}
           onScan={() => push({ kind: 'scan' })}
           onCustom={() => push({ kind: 'custom' })}
+          onFromAi={mode.kind === 'log' ? () => push({ kind: 'ai' }) : undefined}
         />
       )}
+      {view.kind === 'ai' && <FromAiView onRead={(estimate) => push({ kind: 'ai-check', estimate })} />}
+      {view.kind === 'ai-check' && (
+        <AiCheckView
+          estimate={view.estimate}
+          initialSlot={slot}
+          onAdd={(name, grams, chosenSlot) => setAsking({ estimate: { ...view.estimate, name }, grams, slot: chosenSlot })}
+        />
+      )}
+      {asking && <SaveEstimateDialog name={asking.estimate.name} onAnswer={(save) => void logEstimate(save)} />}
       {view.kind === 'choose' && (
         <ChooseTagView
           tagId={view.tagId}
