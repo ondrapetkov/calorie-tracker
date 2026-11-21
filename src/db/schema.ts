@@ -33,6 +33,7 @@ export interface LogEntry extends SyncFields, Macros {
   /** Local calendar day, YYYY-MM-DD. */
   date: string
   slot: Slot
+  /** At most one is set. Neither: a one-off logged from an AI estimate, with no food behind it. */
   foodId: string | null
   mealId: string | null
   /** Amount eaten in g or ml (for a food); `unit` says which. */
@@ -54,6 +55,8 @@ export interface LogEntry extends SyncFields, Macros {
   plateEdited?: boolean
   /** For a food: set when the amount was entered in servings of this size; shown and edited that way. */
   serving?: Serving
+  /** Set when the values are an AI's estimate (logged via "From AI"). */
+  estimate?: 'ai'
 }
 
 export interface Meal extends SyncFields {

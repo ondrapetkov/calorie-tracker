@@ -19,6 +19,8 @@ interface Props {
   slot?: Slot
   onScan: () => void
   onCustom: () => void
+  /** When set (adding to the diary), a "From AI" button is offered next to "Create custom food". */
+  onFromAi?: () => void
 }
 
 type Remote =
@@ -37,7 +39,7 @@ function readCzechOnly(): boolean {
   }
 }
 
-export function SearchView({ onPick, onPickMeal, onScan, onCustom, slot }: Props) {
+export function SearchView({ onPick, onPickMeal, onScan, onCustom, onFromAi, slot }: Props) {
   const [query, setQuery] = useState('')
   const [czechOnly, setCzechOnly] = useState(readCzechOnly)
   const [remote, setRemote] = useState<Remote>({ status: 'idle' })
@@ -176,9 +178,16 @@ export function SearchView({ onPick, onPickMeal, onScan, onCustom, slot }: Props
         </Section>
       )}
 
-      <Button className="w-full" onClick={onCustom}>
-        Create custom food
-      </Button>
+      <div className="flex gap-2">
+        {onFromAi && (
+          <Button className="flex-1" onClick={onFromAi}>
+            ✨ From AI
+          </Button>
+        )}
+        <Button className="flex-1" onClick={onCustom}>
+          Create custom food
+        </Button>
+      </div>
     </div>
   )
 }

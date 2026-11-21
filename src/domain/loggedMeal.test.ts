@@ -185,6 +185,10 @@ describe('plate from food entries', () => {
     expect(canSaveSlotAsMeal([food('a'), food('b')], live)).toBe(true)
     expect(canSaveSlotAsMeal([food('a'), { foodId: null, mealId: 'meal' }], live)).toBe(false)
     expect(canSaveSlotAsMeal([food('a'), food('gone')], live)).toBe(false)
+    // A one-off with no food behind it (an AI estimate) is left out, not a blocker.
+    const oneOff = { foodId: null, mealId: null }
+    expect(canSaveSlotAsMeal([food('a'), food('b'), oneOff], live)).toBe(true)
+    expect(canSaveSlotAsMeal([food('a'), oneOff], live)).toBe(false)
   })
 })
 

@@ -5,6 +5,7 @@ import { createRepo, TagNameTakenError, type FoodInput } from './repo'
 import { liveTagIds } from '../domain/tags'
 import { sumMacros } from '../domain/nutrition'
 import { plateMacros, type LoggedMealItem } from '../domain/loggedMeal'
+import type { AiEstimate } from '../domain/aiEstimate'
 
 const oats: FoodInput = {
   source: 'custom',
@@ -431,6 +432,45 @@ describe('servings', () => {
     const meal = (await repo.getMeal(mealId))!
     expect(meal.items[0]).toMatchObject({ grams: 100, serving: slice })
     expect((await db.logEntries.get(entry.id))!.items![0].serving).toEqual(slice)
+  })
+})
+
+describe('AI estimates', () => {
+  const kebab: AiEstimate = {
+    name: 'Kebab v tortille',
+    grams: 450,
+    totals: { kcal: 890, protein: 48, carbs: 82, sugar: 6, fat: 39, fiber: 5, salt: 4.2 },
+  }
+
+  it('logs an AI estimate without a food', async () => {
+    const e = await repo.logEstimate({ estimate: kebab, grams: 450, date: '2026-11-21', slot: 'dinner', saveAsFood: false })
+    expect(e).toMatchObject({ foodId: null, mealId: null, estimate: 'ai', label: 'Kebab v tortille', grams: 450, unit: 'g', kcal: 890, slot: 'dinner' })
+    expect(await repo.entriesForDate('2026-11-21')).toHaveLength(1)
+    expect(await repo.allFoods()).toEqual([])
+    expect(await repo.recentFoods()).toEqual([])
+  })
+
+  it('scales the estimate to an edited amount', async () => {
+    const e = await repo.logEstimate({ estimate: kebab, grams: 225, date: '2026-11-21', slot: 'dinner', saveAsFood: false })
+    expect(e.kcal).toBeCloseTo(445)
+    expect(e.protein).toBeCloseTo(24)
+  })
+
+  it('saves a food from the estimate when asked', async () => {
+    const e = await repo.logEstimate({ estimate: kebab, grams: 450, date: '2026-11-21', slot: 'dinner', saveAsFood: true })
+    const [food] = await repo.allFoods()
+    expect(food).toMatchObject({ name: 'Kebab v tortille', source: 'custom', basis: 'g', defaultServingG: 450, defaultServingLabel: '1 portion' })
+    expect(food.per100.kcal).toBeCloseTo(197.8, 1)
+    expect(e.foodId).toBe(food.id)
+    expect(e.estimate).toBe('ai')
+    expect(e.kcal).toBeCloseTo(890)
+    expect((await db.logEntries.get(e.id))!.estimate).toBe('ai')
+  })
+
+  it('rescales a food-less estimate on edit', async () => {
+    const e = await repo.logEstimate({ estimate: kebab, grams: 450, date: '2026-11-21', slot: 'dinner', saveAsFood: false })
+    await repo.updateEntry(e.id, { grams: 900, slot: 'dinner' })
+    expect((await db.logEntries.get(e.id))!.kcal).toBeCloseTo(1780)
   })
 })
 

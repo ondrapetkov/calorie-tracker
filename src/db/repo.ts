@@ -25,6 +25,7 @@ import {
 } from '../domain/loggedMeal'
 import { matchesQuery } from '../domain/search'
 import type { Serving } from '../domain/servings'
+import { per100FromTotals, type AiEstimate } from '../domain/aiEstimate'
 import { effectiveMealTags } from '../domain/mealTags'
 import { buildVocabulary, findGroupByName, findTagByName, liveTagIds, type Vocabulary } from '../domain/tags'
 import { BUILTIN_GROUPS, BUILTIN_TAGS } from '../data/builtinTags'
@@ -348,6 +349,55 @@ export function createRepo(db: AppDB = defaultDb) {
     async liveFoodIds(ids: string[]): Promise<Set<string>> {
       const foods = await db.foods.bulkGet(ids)
       return new Set(foods.filter((f): f is Food => !!f && f.deletedAt === null).map((f) => f.id))
+    },
+
+    /**
+     * Log a one-off from an AI's estimate, `grams` of it (the AI's weight, or the owner's change).
+     * With `saveAsFood`, a custom food is stored from it first (its portion as the serving size)
+     * and the entry is logged from that food; otherwise the entry has no food behind it.
+     */
+    async logEstimate(params: {
+      estimate: AiEstimate
+      grams: number
+      date: string
+      slot: Slot
+      saveAsFood: boolean
+    }): Promise<LogEntry> {
+      const { estimate, grams, date, slot } = params
+      if (!(grams > 0)) throw new Error('An amount above 0 is needed')
+      return db.transaction('rw', db.logEntries, db.foods, async () => {
+        if (params.saveAsFood) {
+          const food = await this.saveFood({
+            source: 'custom',
+            externalId: null,
+            name: estimate.name,
+            brand: null,
+            basis: 'g',
+            per100: per100FromTotals(estimate.totals, estimate.grams),
+            defaultServingG: estimate.grams,
+            defaultServingLabel: '1 portion',
+          })
+          const logged = await this.logFood({ food, grams, date, slot })
+          await db.logEntries.update(logged.id, { estimate: 'ai' })
+          return { ...logged, estimate: 'ai' as const }
+        }
+        const entry: LogEntry = {
+          ...fresh(),
+          ...multiplyMacros(estimate.totals, grams / estimate.grams),
+          date,
+          slot,
+          foodId: null,
+          mealId: null,
+          grams,
+          unit: 'g',
+          servings: null,
+          label: estimate.name,
+          loggedAt: Date.now(),
+          estimate: 'ai',
+        }
+        await db.logEntries.add(entry)
+        return entry
+      })
     },
 
     /** Log `servings` portions of a saved meal. The plate snapshot comes from the ingredients as they are now. */

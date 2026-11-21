@@ -166,3 +166,73 @@ test('a food logged in grams can be switched to servings', async ({ page }) => {
   await edit.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(entry).toContainText('2 servings · 100 g')
 })
+
+const AI_ANSWER = `Assuming a large kebab in a tortilla with chicken, cabbage and garlic sauce, roughly 800–900 kcal.
+
+Name: Kebab v tortille
+Weight: 450 g
+Energy: 890 kcal
+Protein: 48 g
+Carbohydrates: 82 g
+Sugars: 6 g
+Fat: 39 g
+Fibre: 5 g
+Salt: 4.2 g`
+
+async function readAiAnswerInto(page: Page, answer: string) {
+  await slotCard(page, 'Dinner').getByRole('button', { name: '+ Add' }).click()
+  await page.getByRole('button', { name: '✨ From AI' }).click()
+  await page.getByLabel("The AI's answer").fill(answer)
+  await page.getByRole('button', { name: 'Read this answer' }).click()
+}
+
+test('logs a one-off from an AI answer', async ({ page }) => {
+  await readAiAnswerInto(page, AI_ANSWER)
+  const check = sheet(page, 'Check')
+  await expect(check.getByLabel('Name')).toHaveValue('Kebab v tortille')
+  await expect(check.getByLabel('Amount (g)')).toHaveValue('450')
+  await check.getByLabel('Amount (g)').fill('225')
+  await expect(check).toContainText('445')
+  await check.getByRole('button', { name: 'Add to diary' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'Save "Kebab v tortille" as a food?' })
+  await dialog.getByRole('button', { name: 'Just this entry' }).click()
+  const entry = slotCard(page, 'Dinner').getByRole('button', { name: /Kebab v tortille/ })
+  await expect(entry).toContainText('✨ AI estimate · 225 g')
+  await expect(entry).toContainText('445')
+
+  await tab(page, 'Foods')
+  await expect(page.getByText('Kebab v tortille')).toHaveCount(0)
+})
+
+test('stores an AI estimate as a food when asked', async ({ page }) => {
+  await readAiAnswerInto(page, AI_ANSWER)
+  await sheet(page, 'Check').getByRole('button', { name: 'Add to diary' }).click()
+  await page.getByRole('dialog', { name: /as a food\?/ }).getByRole('button', { name: 'Save as a food too' }).click()
+  await expect(slotCard(page, 'Dinner').getByRole('button', { name: /Kebab v tortille/ })).toContainText('✨ AI estimate · 450 g')
+  await tab(page, 'Foods')
+  await expect(page.getByText('Kebab v tortille')).toBeVisible()
+})
+
+test('says what is missing from an AI answer', async ({ page }) => {
+  await readAiAnswerInto(page, AI_ANSWER.replace('Weight: 450 g\n', ''))
+  await expect(page.getByRole('alert')).toContainText("Couldn't find Weight in the answer")
+})
+
+test('saving a slot as a meal leaves an AI one-off as it is', async ({ page }) => {
+  await logToSlot(page, 'Dinner', 'kureci prsa', CHICKEN, 150)
+  await logToSlot(page, 'Dinner', 'ryze varena', RICE, 200)
+  await readAiAnswerInto(page, AI_ANSWER)
+  await sheet(page, 'Check').getByRole('button', { name: 'Add to diary' }).click()
+  await page.getByRole('button', { name: 'Just this entry' }).click()
+
+  const dinner = slotCard(page, 'Dinner')
+  await dinner.getByRole('button', { name: 'Save as meal' }).click()
+  const save = sheet(page, 'Save as meal')
+  await expect(save).not.toContainText('Kebab')
+  await save.getByLabel('Name').fill('Kuře s rýží')
+  await save.getByRole('button', { name: 'Done' }).click()
+  await expect(save).toBeHidden()
+  await expect(dinner.getByRole('button', { name: /Kuře s rýží/ })).toContainText('1 × meal')
+  await expect(dinner.getByRole('button', { name: /Kebab v tortille/ })).toContainText('✨ AI estimate')
+})
